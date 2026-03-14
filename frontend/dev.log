@@ -1,0 +1,106 @@
+
+> frontend@0.1.0 dev
+> next dev
+
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+
+ ✓ Starting...
+ ✓ Ready in 2.4s
+ ○ Compiling / ...
+ ✓ Compiled / in 3.3s (857 modules)
+ GET / 200 in 4212ms
+ ✓ Compiled in 578ms (373 modules)
+ GET / 200 in 69ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 2s (516 modules)
+ GET /favicon.ico 200 in 2166ms
+ GET / 200 in 1304ms
+ GET / 200 in 157ms
+ GET / 200 in 454ms
+ GET / 200 in 270ms
+ ✓ Compiled in 2.3s (857 modules)
+ ✓ Compiled in 886ms (857 modules)
+ GET / 200 in 413ms
+ GET / 200 in 164ms
+ GET /?cache=new_page 200 in 556ms
+ ✓ Compiled in 6.8s (857 modules)
+ GET /?cache=new_page 200 in 1206ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 856ms (516 modules)
+ GET /favicon.ico 200 in 1123ms
+ ✓ Compiled in 702ms (583 modules)
+ GET / 200 in 98ms
+ GET / 200 in 121ms
+ ✓ Compiled in 2.8s (262 modules)
+ ✓ Compiled in 4.9s (609 modules)
+ GET / 200 in 231ms
+ GET /?cache=new_page 200 in 71ms
+ GET / 200 in 46ms
+ GET / 200 in 636ms
+ GET / 200 in 778ms
+ ✓ Compiled in 4.3s (276 modules)
+ ✓ Compiled in 6.5s (621 modules)
+ GET / 200 in 1637ms
+ ✓ Compiled in 2.7s (282 modules)
+ ✓ Compiled in 2.7s (635 modules)
+ GET / 200 in 210ms
+ ✓ Compiled in 5.7s (289 modules)
+ ✓ Compiled in 1360ms (649 modules)
+ GET / 200 in 880ms
+ ✓ Compiled in 2s (296 modules)
+ ✓ Compiled in 1025ms (649 modules)
+ ✓ Compiled in 764ms (651 modules)
+ ✓ Compiled in 1395ms (659 modules)
+ GET / 200 in 1727ms
+ ⚠ Cross origin request detected from 127.0.0.1 to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 1032ms (390 modules)
+ GET /favicon.ico 200 in 1232ms
+ GET / 200 in 845ms
+ GET / 200 in 390ms
+ ✓ Compiled in 5.5s (659 modules)
+ ✓ Compiled in 3.6s (661 modules)
+ ⨯ ./src/components/vision/VisionDashboard.tsx
+Error: 
+  [31mx[0m Unexpected token `div`. Expected jsx identifier
+     ,-[[36;1;4m/Users/gauravvraii/Nexusai/frontend/src/components/vision/VisionDashboard.tsx[0m:221:1]
+ [2m221[0m |   const _ = topClass; // suppress unused
+ [2m222[0m | 
+ [2m223[0m |   return (
+ [2m224[0m |     <div className="space-y-6">
+     : [31;1m     ^^^[0m
+ [2m225[0m | 
+ [2m226[0m |       {/* Mode Switch Tabs */}
+ [2m227[0m |       <div className="flex bg-gray-100 rounded-xl p-1 gap-1 w-fit">
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/components/vision/VisionDashboard.tsx
+./src/app/page.tsx
+ ⨯ ./src/components/vision/VisionDashboard.tsx
+Error: 
+  [31mx[0m Unexpected token `div`. Expected jsx identifier
+     ,-[[36;1;4m/Users/gauravvraii/Nexusai/frontend/src/components/vision/VisionDashboard.tsx[0m:221:1]
+ [2m221[0m |   const _ = topClass; // suppress unused
+ [2m222[0m | 
+ [2m223[0m |   return (
+ [2m224[0m |     <div className="space-y-6">
+     : [31;1m     ^^^[0m
+ [2m225[0m | 
+ [2m226[0m |       {/* Mode Switch Tabs */}
+ [2m227[0m |       <div className="flex bg-gray-100 rounded-xl p-1 gap-1 w-fit">
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested module:
+./src/components/vision/VisionDashboard.tsx
+./src/app/page.tsx
+ ✓ Compiled in 2.5s (661 modules)
+[?25h
