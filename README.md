@@ -58,5 +58,18 @@ graph TD
 3. **Seed**: `docker-compose exec backend python app/init_db.py`
 4. **Docs**: Visit `http://localhost:8000/docs`
 
+## 🧪 Running Tests
+Nexus-AI includes a comprehensive `pytest` suite for validating core ML logic and API endpoints.
+
+**Unit & Integration Tests**:
+```bash
+# Run all tests via Docker
+docker-compose exec backend pytest
+
+# Run locally (requires venv)
+pytest tests/
+```
+
 ---
+
 *Built for the Nexusai Portfolio — Demonstrating Engineering Excellence.*
