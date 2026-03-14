@@ -1,0 +1,2 @@
+Nexus-AI 2026 Core Capabilities:
+Nexus-AI provides a comprehensive suite of enterprise machine learning tools. Key features include cross-module intelligence, visual similarity product search using CLIP ViT-B/32, and advanced sentiment analysis using a fine-tuned DistilBERT transformer ensemble. It seamlessly detects fraud with an XGBoost scoring module.
