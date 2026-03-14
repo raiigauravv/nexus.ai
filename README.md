@@ -1,6 +1,6 @@
 # Nexus-AI: Enterprise-Grade Intelligent E-Commerce
 
-![Nexus-AI System Architecture](file:///Users/gauravvraii/.gemini/antigravity/brain/dae3ef00-7bbd-49b8-aedb-f408ee40675e/nexus_ai_system_architecture_1773464111147.png)
+![Nexus-AI System Architecture](docs/architecture.png)
 
 Nexus-AI is a high-performance, ML-driven commerce platform engineered for a **Top 5% Portfolio Standard**. It showcases an ensemble of advanced AI modules, production-grade infrastructure, and security-first design.
 
@@ -16,7 +16,7 @@ Nexus-AI is a high-performance, ML-driven commerce platform engineered for a **T
 ## 🎥 System Demo: Agent Chaining
 Watch the AI Agent autonomously coordinate between **Fraud Detection**, **Sentiment Analysis**, **Thematic Clustering (BERTopic)**, and **Visual CLIP Search** in a single multi-turn query.
 
-![Nexus-AI Agent Chaining Demo](file:///Users/gauravvraii/.gemini/antigravity/brain/dae3ef00-7bbd-49b8-aedb-f408ee40675e/nexus_ai_full_demo_chaining_1773458620267.webp)
+![Nexus-AI Agent Chaining Demo](docs/demo.webp)
 
 ## 📊 Performance Metrics (Verified)
 *Note: Evaluated on high-noise synthetic data to ensure real-world metric credibility.*
