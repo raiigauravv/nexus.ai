@@ -8,6 +8,7 @@ GET  /api/v1/sentiment/samples/{id}     — analyze a specific demo review
 import logging
 from typing import List
 from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.ml.sentiment import analyze, SAMPLE_REVIEWS, get_vader

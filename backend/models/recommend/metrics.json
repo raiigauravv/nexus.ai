@@ -1,0 +1,8 @@
+{
+  "num_users": 47322,
+  "num_items": 720,
+  "num_interactions": 61273,
+  "sparsity": 0.998202,
+  "svd_rank": 50,
+  "dataset": "Amazon Cell Phones Reviews (Kaggle)"
+}

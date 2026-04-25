@@ -1,4 +1,5 @@
 import json
+import asyncio
 import uuid
 import logging
 from fastapi import APIRouter, HTTPException
@@ -17,31 +18,38 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+# Models confirmed available via ListModels API — primary is gemini-2.5-flash
+RAG_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-2.0-flash-lite",
+    "gemini-2.0-flash-001",
+]
+
+
 class ChatRequest(BaseModel):
     messages: List[dict]
     namespace: str = "default"
 
-def get_llm():
+
+def get_llm(model: str = RAG_MODELS[0]):
     if not settings.GEMINI_API_KEY:
         raise ValueError("GEMINI_API_KEY is not set.")
     return ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
+        model=model,
         temperature=0,
         streaming=True,
-        google_api_key=settings.GEMINI_API_KEY
+        google_api_key=settings.GEMINI_API_KEY,
+        request_timeout=30,
     )
 
+
 def extract_text(msg: dict) -> str:
-    """
-    Supports both old and new Vercel AI SDK message formats:
-    - New (v5/v6): {"role": "user", "parts": [{"type": "text", "text": "Hello"}]}
-    - Old (v4):    {"role": "user", "content": "Hello"}
-    """
     if "parts" in msg and isinstance(msg["parts"], list):
         text_parts = [p.get("text", "") for p in msg["parts"] if p.get("type") == "text"]
         if text_parts:
             return " ".join(text_parts).strip()
     return (msg.get("content") or msg.get("text") or "").strip()
+
 
 def convert_messages(messages: List[dict]) -> List[BaseMessage]:
     converted = []
@@ -55,15 +63,89 @@ def convert_messages(messages: List[dict]) -> List[BaseMessage]:
             converted.append(AIMessage(content=content))
     return converted
 
+
 def sse(data: dict) -> str:
-    """Format a dict as a proper SSE event expected by AI SDK v6 DefaultChatTransport."""
     return f"data: {json.dumps(data)}\n\n"
+
+
+def _is_retryable(error: Exception) -> bool:
+    """Return True for 503/429 (rate limit / high demand) errors."""
+    msg = str(error).lower()
+    return any(x in msg for x in ["503", "429", "resource_exhausted", "overloaded", "high demand", "quota"])
+
+
+async def _stream_rag_with_retry(
+    user_query: str,
+    chat_history: List[BaseMessage],
+    namespace: str,
+):
+    """
+    Streams RAG response tokens. Retries with fallback models on 503/429.
+    Yields raw token strings (not SSE-wrapped).
+    """
+    system_prompt = (
+        "You are the NEXUS-AI intelligent assistant. "
+        "Use the following retrieved context to answer the user's question accurately and concisely. "
+        "If the answer is not in the context, say you don't know based on the loaded documents. "
+        "Keep reasoning concise and professional.\n\nContext: {context}"
+    )
+    prompt = ChatPromptTemplate.from_messages([
+        ("system", system_prompt),
+        ("placeholder", "{chat_history}"),
+        ("user", "{input}"),
+    ])
+
+    vectorstore = get_vectorstore(namespace=namespace)
+    retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
+
+    def format_docs(docs):
+        return "\n\n".join(doc.page_content for doc in docs)
+
+    last_error = None
+    for model_idx, model_name in enumerate(RAG_MODELS):
+        try:
+            if model_idx > 0:
+                logger.info(f"RAG: retrying with fallback model {model_name}")
+
+            llm = get_llm(model_name)
+            rag_chain = (
+                {
+                    "context": (lambda x: x["input"]) | retriever | format_docs,
+                    "chat_history": lambda x: x["chat_history"],
+                    "input": lambda x: x["input"],
+                }
+                | prompt
+                | llm
+                | StrOutputParser()
+            )
+
+            collected = []
+            async for chunk in rag_chain.astream({
+                "chat_history": chat_history,
+                "input": user_query,
+            }):
+                if chunk:
+                    collected.append(chunk)
+                    yield chunk
+            return  # success — stop retrying
+
+        except Exception as e:
+            last_error = e
+            if _is_retryable(e) and model_idx < len(RAG_MODELS) - 1:
+                logger.warning(f"RAG 503/429 on {model_name}, switching to {RAG_MODELS[model_idx + 1]}")
+                await asyncio.sleep(1.5 * (model_idx + 1))  # backoff
+                continue
+            # Non-retryable or exhausted all models
+            raise e
+
+    if last_error:
+        raise last_error
+
 
 @router.post("/chat")
 async def chat(request: ChatRequest):
     """
-    Streaming chat endpoint compatible with Vercel AI SDK v6 DefaultChatTransport.
-    Emits Server-Sent Events (SSE) with uiMessageChunk JSON objects.
+    Streaming RAG chat endpoint with automatic model fallback on 503/429.
     """
     try:
         if not request.messages:
@@ -73,61 +155,22 @@ async def chat(request: ChatRequest):
         user_query = extract_text(last_msg) or "Hello"
         chat_history = convert_messages(request.messages[:-1])
 
-        vectorstore = get_vectorstore(namespace=request.namespace)
-        retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
-        llm = get_llm()
-
-        system_prompt = (
-            "You are the NEXUS-AI intelligent assistant. "
-            "Use the following pieces of retrieved context to answer the user's question. "
-            "If you don't know the answer based on the context, say that you don't know. "
-            "Keep your reasoning concise and professional.\n\n"
-            "Context: {context}"
-        )
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", system_prompt),
-            ("placeholder", "{chat_history}"),
-            ("user", "{input}")
-        ])
-
-        def format_docs(docs):
-            return "\n\n".join(doc.page_content for doc in docs)
-
-        rag_chain = (
-            {
-                "context": (lambda x: x["input"]) | retriever | format_docs,
-                "chat_history": lambda x: x["chat_history"],
-                "input": lambda x: x["input"]
-            }
-            | prompt
-            | llm
-            | StrOutputParser()
-        )
-
         async def stream_generator():
-            # AI SDK v6 expects SSE with typed JSON chunks:
-            # text-start → text-delta (repeated) → text-end
             msg_id = str(uuid.uuid4())
             try:
-                # Signal start of assistant message
                 yield sse({"type": "text-start", "id": msg_id})
-
-                async for chunk in rag_chain.astream({
-                    "chat_history": chat_history,
-                    "input": user_query
-                }):
-                    if chunk:
-                        yield sse({"type": "text-delta", "id": msg_id, "delta": chunk})
-
-                # Signal end of assistant message
+                async for token in _stream_rag_with_retry(user_query, chat_history, request.namespace):
+                    yield sse({"type": "text-delta", "id": msg_id, "delta": token})
                 yield sse({"type": "text-end", "id": msg_id})
 
             except Exception as e:
-                import traceback
-                with open("/tmp/chat_stream_error.log", "w") as f:
-                    f.write(traceback.format_exc())
-                logger.error(f"Streaming error: {e}")
-                yield sse({"type": "error", "errorText": str(e)})
+                logger.error(f"RAG stream error: {e}")
+                # Surface a clean user-facing error
+                if _is_retryable(e):
+                    msg = "Gemini API is temporarily overloaded. Please wait a moment and try again."
+                else:
+                    msg = f"RAG error: {str(e)}"
+                yield sse({"type": "error", "errorText": msg})
 
         return StreamingResponse(
             stream_generator(),
@@ -137,17 +180,9 @@ async def chat(request: ChatRequest):
                 "Connection": "keep-alive",
                 "x-vercel-ai-ui-message-stream": "v1",
                 "Access-Control-Allow-Origin": "*",
-            }
+            },
         )
 
     except Exception as e:
-        logger.error(f"Error in chat endpoint: {e}")
-        import traceback
-        with open("/tmp/chat_error.log", "w") as f:
-            f.write(traceback.format_exc())
-            try:
-                f.write("\n\nPayload:\n")
-                f.write(json.dumps(request.dict()))
-            except Exception:
-                pass
+        logger.error(f"Error in /chat: {e}")
         raise HTTPException(status_code=500, detail=str(e))

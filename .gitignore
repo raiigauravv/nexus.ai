@@ -1,8 +1,27 @@
 backend/.env
 .DS_Store
-**/ .DS_Store
+**/.DS_Store
 __pycache__/
 *.pyc
 venv/
 mlruns.db
 backend/mlruns.db
+
+# Dev server logs
+*.log
+frontend/dev.log
+
+# Scratch / one-off test files
+frontend/test_usechat.tsx
+
+# Editor / IDE
+.vscode/
+.idea/
+
+# pytest cache
+.pytest_cache/
+
+.env
+docker-compose.override.yml
+data/
+backend/models/recommend/*.npy

@@ -28,6 +28,18 @@ class Settings(BaseSettings):
     PINECONE_INDEX_NAME: str = "nexus-ai-rag"
     PINECONE_VISION_INDEX: str = "nexus-ai-vision"
 
-    model_config = SettingsConfigDict(env_file=".env", env_ignore_empty=True)
+    # Auth / JWT
+    JWT_SECRET_KEY: str = "nexus-ai-super-secret-jwt-key-change-in-production"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
+    # MLflow
+    MLFLOW_TRACKING_URI: str = "sqlite:///mlruns.db"
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        env_ignore_empty=True,
+        extra="ignore",          # silently drop any env vars not declared above
+    )
 
 settings = Settings()

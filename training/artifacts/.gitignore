@@ -1,0 +1,7 @@
+# Trained model artifacts — tracked by DVC, not git
+*.pkl
+*.pt
+*.pth
+*.onnx
+*.joblib
+sentiment_distilbert/

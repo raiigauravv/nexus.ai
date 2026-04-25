@@ -12,7 +12,8 @@ from app.auth import (
     create_access_token, 
     get_password_hash, 
     ACCESS_TOKEN_EXPIRE_MINUTES,
-    verify_password
+    verify_password,
+    get_current_user
 )
 
 logger = logging.getLogger(__name__)
@@ -34,16 +35,14 @@ async def register(user_in: UserRegister, db: Session = Depends(get_db)):
     if db_user:
         raise HTTPException(status_code=400, detail="User ID already registered")
     
-    hashed_password = get_password_hash(user_in.password)
-    # Note: We need to add a hashed_password column to the User model if we want persistence.
-    # For this portfolio demo, we'll demonstrate the logic.
+    hashed_pw = get_password_hash(user_in.password)
     new_user = User(
         id=user_in.id,
         name=user_in.name,
         persona=user_in.persona,
-        avatar="default"
+        avatar="default",
+        hashed_password=hashed_pw
     )
-    # We'll simulate storing the hash (adding the column to User model now)
     db.add(new_user)
     db.commit()
     
@@ -62,12 +61,31 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    # For the sake of the demo, we'll accept any password if the user exists, 
-    # as we haven't seeded hashed passwords for the synthetic 500 users yet.
-    # In a real app, verify_password(form_data.password, user.hashed_password)
+        
+    # Real password verification
+    if not user.hashed_password or not verify_password(form_data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
         data={"sub": user.id}, expires_delta=access_token_expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+class UserResponse(BaseModel):
+    id: str
+    name: str
+    persona: str
+    avatar: str
+
+    class Config:
+        from_attributes = True
+
+@router.get("/auth/me", response_model=UserResponse)
+async def read_users_me(current_user: User = Depends(get_current_user)):
+    return current_user
+

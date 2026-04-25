@@ -11,16 +11,37 @@ from typing import Dict, Any
 logger = logging.getLogger(__name__)
 
 # ── Lazy-loaded model singletons ───────────────────────────────────────────────
+_roberta = None
 _distilbert = None
 _vader = None
 _textblob_imported = False
+
+def _get_roberta():
+    """Primary: cardiffnlp RoBERTa — 3-class sentiment, trained on 124M tweets."""
+    global _roberta
+    if _roberta is None:
+        try:
+            from transformers import pipeline as hf_pipeline
+            logger.info("Loading RoBERTa sentiment model (cardiffnlp)...")
+            _roberta = hf_pipeline(
+                "text-classification",
+                model="cardiffnlp/twitter-roberta-base-sentiment-latest",
+                truncation=True,
+                max_length=512,
+                top_k=None,          # return all 3 class scores
+            )
+            logger.info("RoBERTa sentiment model loaded.")
+        except Exception as e:
+            logger.warning(f"RoBERTa unavailable ({e}), falling back to DistilBERT.")
+            _roberta = None
+    return _roberta
 
 def _get_distilbert():
     global _distilbert
     if _distilbert is None:
         try:
             from transformers import pipeline as hf_pipeline
-            logger.info("Loading DistilBERT sentiment model…")
+            logger.info("Loading DistilBERT sentiment model (fallback)...")
             _distilbert = hf_pipeline(
                 "sentiment-analysis",
                 model="distilbert-base-uncased-finetuned-sst-2-english",
@@ -78,37 +99,58 @@ def analyze(text: str) -> Dict[str, Any]:
     words = text.lower().split()
     word_set = set(words)
 
-    # ── 1. Primary: DistilBERT transformer ─────────────────────────────────────
-    distilbert_score = 0.0
+    # ── 1. Primary: RoBERTa (cardiffnlp) — 3-class ────────────────────────────
+    transformer_score = 0.0
     model_used = "VADER (fallback)"
-    transformer_label = "NEUTRAL"
+    transformer_label = "neutral"
     transformer_confidence = 0.0
+    roberta_scores = {}
 
-    distilbert = _get_distilbert()
-    if distilbert:
+    roberta = _get_roberta()
+    if roberta:
         try:
-            result = distilbert(text[:512])[0]
-            raw_score = result["score"]
-            transformer_confidence = raw_score
-            if result["label"] == "POSITIVE":
-                distilbert_score = raw_score
-                transformer_label = "POSITIVE"
-            else:
-                distilbert_score = -raw_score
-                transformer_label = "NEGATIVE"
-            model_used = "DistilBERT SST-2"
+            results = roberta(text[:512])[0]   # list of {label, score} for all 3 classes
+            roberta_scores = {r["label"].lower(): r["score"] for r in results}
+            pos = roberta_scores.get("positive", 0)
+            neg = roberta_scores.get("negative", 0)
+            neu = roberta_scores.get("neutral", 0)
+            transformer_score = pos - neg          # signed score in [-1, 1]
+            transformer_label = max(roberta_scores, key=roberta_scores.get).upper()
+            transformer_confidence = max(pos, neg, neu)
+            model_used = "RoBERTa (cardiffnlp/twitter-roberta-base-sentiment-latest)"
         except Exception as e:
-            logger.warning(f"DistilBERT inference failed: {e}")
+            logger.warning(f"RoBERTa inference failed: {e}, trying DistilBERT")
 
-    # ── 2. Secondary: VADER (adds compound granularity) ────────────────────────
+    # Fallback to DistilBERT
+    if not roberta or model_used == "VADER (fallback)":
+        distilbert = _get_distilbert()
+        if distilbert:
+            try:
+                result = distilbert(text[:512])[0]
+                raw_score = result["score"]
+                transformer_confidence = raw_score
+                if result["label"] == "POSITIVE":
+                    transformer_score = raw_score
+                    transformer_label = "POSITIVE"
+                else:
+                    transformer_score = -raw_score
+                    transformer_label = "NEGATIVE"
+                model_used = "DistilBERT SST-2 (fallback)"
+            except Exception as e:
+                logger.warning(f"DistilBERT inference failed: {e}")
+
+    # ── 2. Secondary: VADER ────────────────────────────────────────────────────
     vader = _get_vader()
     vader_scores = vader.polarity_scores(text)
     vader_compound = vader_scores["compound"]
 
     # ── 3. Ensemble score ──────────────────────────────────────────────────────
-    if distilbert and model_used == "DistilBERT SST-2":
-        # 70% DistilBERT + 30% VADER for combined strength
-        ensemble_score = 0.70 * distilbert_score + 0.30 * vader_compound
+    if "RoBERTa" in model_used:
+        # 75% RoBERTa + 25% VADER
+        ensemble_score = 0.75 * transformer_score + 0.25 * vader_compound
+    elif "DistilBERT" in model_used:
+        # 70% transformer + 30% VADER
+        ensemble_score = 0.70 * transformer_score + 0.30 * vader_compound
     else:
         # Pure VADER fallback
         from textblob import TextBlob
@@ -197,9 +239,14 @@ def analyze(text: str) -> Dict[str, Any]:
             "primary_model": model_used,
             "transformer_label": transformer_label,
             "transformer_confidence": round(transformer_confidence, 4),
+            "roberta_scores": {k: round(v, 4) for k, v in roberta_scores.items()} if roberta_scores else {},
             "vader_compound": round(vader_compound, 4),
             "textblob_polarity": round(textblob_polarity, 4),
-            "ensemble_weights": "70% DistilBERT + 30% VADER" if "DistilBERT" in model_used else "65% VADER + 35% TextBlob",
+            "ensemble_weights": (
+                "75% RoBERTa + 25% VADER" if "RoBERTa" in model_used
+                else "70% DistilBERT + 30% VADER" if "DistilBERT" in model_used
+                else "65% VADER + 35% TextBlob"
+            ),
         },
         "emotions": emotions,
         "aspects": aspect_results,

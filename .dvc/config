@@ -1,0 +1,9 @@
+[core]
+    remote = minio_local
+    autostage = true
+
+['remote "minio_local"']
+    url = s3://nexus-documents/dvc
+    endpointurl = http://localhost:9000
+    access_key_id = minioadmin
+    secret_access_key = minioadminpassword

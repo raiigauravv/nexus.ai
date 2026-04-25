@@ -6,11 +6,14 @@ from app.config import settings
 from app.api.endpoints import chat, ingest, fraud, recommend, sentiment, vision, agent, auth
 from app.database import SessionLocal
 from app.init_db import init_db
+from app.kafka.consumer import start_consumer, stop_consumer
+from app.kafka.producer import stop_producer
 
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # ── Startup ────────────────────────────────────────────────────────────────
     logger.info("Initializing persistent database on startup...")
     db = SessionLocal()
     try:
@@ -19,7 +22,24 @@ async def lifespan(app: FastAPI):
         logger.error(f"Database initialization failed: {e}")
     finally:
         db.close()
+
+    # Start Kafka consumer — non-fatal; app works without it
+    try:
+        await start_consumer()
+    except Exception as e:
+        logger.warning(f"Kafka consumer failed to start (non-fatal): {e}")
+
     yield
+
+    # ── Shutdown ───────────────────────────────────────────────────────────────
+    try:
+        await stop_consumer()
+    except Exception:
+        pass
+    try:
+        await stop_producer()
+    except Exception:
+        pass
 
 app = FastAPI(
     title="NEXUS-AI API",

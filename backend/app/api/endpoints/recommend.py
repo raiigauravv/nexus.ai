@@ -11,6 +11,7 @@ GET /api/v1/recommend/category-complaints/{cat} — cross-module complaint analy
 import logging
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
+from pydantic import BaseModel
 
 from app.ml.recommender import (
     get_recommendations,
@@ -25,6 +26,7 @@ from app.ml.cross_module import (
     get_product_sentiment_health,
     explain_complaints_for_category,
 )
+from app.kafka.producer import publish_purchase_event
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -124,3 +126,47 @@ async def category_complaints(category: str):
         return {"category": category, "analysis": analysis}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── Purchase Event (Kafka → real-time ALS update) ─────────────────────────────
+
+class PurchaseEvent(BaseModel):
+    user_id: str
+    product_id: str
+
+
+@router.post("/recommend/purchase")
+async def record_purchase(event: PurchaseEvent):
+    """
+    Record a product purchase for a user.
+
+    Fires a Kafka purchase_event → the background consumer performs a
+    real-time ALS single-user embedding update so the user's next
+    recommendation call immediately reflects the new purchase.
+    """
+    user    = next((u for u in USERS    if u["id"] == event.user_id),    None)
+    product = next((p for p in PRODUCTS if p["id"] == event.product_id), None)
+
+    if not user:
+        raise HTTPException(status_code=404, detail=f"User {event.user_id} not found.")
+    if not product:
+        raise HTTPException(status_code=404, detail=f"Product {event.product_id} not found.")
+
+    await publish_purchase_event(
+        user_id              = event.user_id,
+        product_id           = event.product_id,
+        product_name         = product["name"],
+        category             = product["category"],
+        price                = product["price"],
+        recommendation_score = None,
+    )
+
+    return {
+        "status": "recorded",
+        "message": (
+            f"Purchase of '{product['name']}' by {user['name']} recorded. "
+            "Real-time embedding update queued via Kafka."
+        ),
+        "user_id":    event.user_id,
+        "product_id": event.product_id,
+    }

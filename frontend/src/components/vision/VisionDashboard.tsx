@@ -77,9 +77,25 @@ interface SearchProduct {
   similarity_pct: number;
 }
 
+interface GeminiIdentification {
+  identified: boolean;
+  product_name?: string;
+  brand?: string;
+  model?: string;
+  category?: string;
+  description?: string;
+  key_features?: string[];
+  estimated_price_range?: string;
+  confidence?: string;
+  similar_products?: string[];
+  powered_by?: string;
+  error?: string;
+}
+
 interface SearchResult {
   query_image: string;
   model: string;
+  identification?: GeminiIdentification;
   results: SearchProduct[];
   total_indexed: number;
 }
@@ -241,7 +257,7 @@ export default function VisionDashboard() {
             </div>
             <p className="text-xs text-indigo-600">
               Upload any product image — CLIP encodes it into a 512-dim embedding and finds the most visually similar 
-              items from the 25-product catalog via cosine similarity.
+              items from the 150-product catalog via cosine similarity.
             </p>
           </div>
 
@@ -292,43 +308,116 @@ export default function VisionDashboard() {
 
           {/* Search Results */}
           {searchResult && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <Cpu className="w-3.5 h-3.5" />
-                <span>Model: {searchResult.model} · {searchResult.total_indexed} products indexed in 512-dim embedding space</span>
+            <div className="space-y-4">
+
+              {/* ── Gemini Vision Identification Card ── */}
+              {searchResult.identification && (
+                <div style={{
+                  background: searchResult.identification.identified
+                    ? "linear-gradient(135deg,rgba(124,58,237,0.12),rgba(16,185,129,0.08))"
+                    : "rgba(244,63,94,0.06)",
+                  border: `1px solid ${searchResult.identification.identified ? "rgba(139,92,246,0.35)" : "rgba(244,63,94,0.25)"}`,
+                  borderRadius: 14, padding: 18,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+                    <span style={{ fontSize: 18 }}>🔍</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#a78bfa", letterSpacing: "0.08em", textTransform: "uppercase" }}>Gemini Vision — Product Identification</span>
+                    {searchResult.identification.confidence && (
+                      <span style={{
+                        marginLeft: "auto", fontSize: 10, fontWeight: 700,
+                        padding: "2px 8px", borderRadius: 99,
+                        background: searchResult.identification.confidence === "high" ? "rgba(16,185,129,0.15)" : "rgba(251,191,36,0.15)",
+                        color: searchResult.identification.confidence === "high" ? "#10b981" : "#f59e0b",
+                        border: `1px solid ${searchResult.identification.confidence === "high" ? "rgba(16,185,129,0.3)" : "rgba(251,191,36,0.3)"}`,
+                        textTransform: "uppercase",
+                      }}>{searchResult.identification.confidence} confidence</span>
+                    )}
+                  </div>
+
+                  {searchResult.identification.identified ? (
+                    <>
+                      <div style={{ marginBottom: 10 }}>
+                        <p style={{ fontSize: 20, fontWeight: 800, color: "var(--text-primary)", letterSpacing: "-0.02em" }}>
+                          {searchResult.identification.product_name}
+                        </p>
+                        <p style={{ fontSize: 13, color: "#a78bfa", fontWeight: 600, marginTop: 2 }}>
+                          {searchResult.identification.brand}{searchResult.identification.model ? ` · ${searchResult.identification.model}` : ""}
+                        </p>
+                      </div>
+                      {searchResult.identification.description && (
+                        <p style={{ fontSize: 12, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 12 }}>
+                          {searchResult.identification.description}
+                        </p>
+                      )}
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+                        {searchResult.identification.key_features?.map((f, i) => (
+                          <span key={i} style={{
+                            fontSize: 11, padding: "3px 10px", borderRadius: 99,
+                            background: "rgba(124,58,237,0.12)", border: "1px solid rgba(139,92,246,0.25)",
+                            color: "#c4b5fd", fontWeight: 500,
+                          }}>✓ {f}</span>
+                        ))}
+                      </div>
+                      {searchResult.identification.estimated_price_range && (
+                        <p style={{ fontSize: 13, color: "#10b981", fontWeight: 700 }}>
+                          💰 {searchResult.identification.estimated_price_range}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                      {searchResult.identification.error || "Could not identify specific product. Showing visually similar catalog items below."}
+                    </p>
+                  )}
+                </div>
+              )}
+
+              {/* ── CLIP Similarity Results ── */}
+              <div style={{ display: "flex", alignItems: "center", gap: 6, paddingTop: 4 }}>
+                <Cpu style={{ width: 13, height: 13, color: "var(--text-muted)" }} />
+                <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
+                  CLIP {searchResult.model} · {searchResult.total_indexed} products · 512-dim cosine similarity
+                </span>
+                <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--text-muted)" }}>Similar in catalog ↓</span>
               </div>
+
               {searchResult.results.map((prod) => (
                 <div
                   key={prod.id}
-                  className="bg-white border border-gray-100 rounded-xl p-4 flex items-center gap-4 hover:shadow-md hover:border-violet-100 transition-all"
+                  style={{
+                    background: "var(--bg-card)", border: "1px solid var(--border)",
+                    borderRadius: 12, padding: "14px 16px",
+                    display: "flex", alignItems: "center", gap: 14,
+                    transition: "all 0.2s",
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(139,92,246,0.4)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; }}
                 >
-                  <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center font-bold text-violet-600 text-sm flex-shrink-0">
-                    #{prod.rank}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-800 text-sm truncate">{prod.name}</p>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${CATEGORY_COLORS[prod.category] || "bg-gray-100 text-gray-600"}`}>
-                        {prod.category}
-                      </span>
-                      <span className="text-xs text-gray-500">${prod.price.toFixed(2)}</span>
-                      <div className="flex items-center gap-0.5">
-                        <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                        <span className="text-xs text-gray-600">{prod.rating}</span>
-                      </div>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                    background: "rgba(124,58,237,0.15)", border: "1px solid rgba(139,92,246,0.3)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontWeight: 800, fontSize: 13, color: "#a78bfa",
+                  }}>#{prod.rank}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <p style={{ fontWeight: 600, fontSize: 13, color: "var(--text-primary)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{prod.name}</p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
+                      <span style={{
+                        fontSize: 10, padding: "2px 8px", borderRadius: 99, fontWeight: 600,
+                        background: "rgba(124,58,237,0.12)", color: "#c4b5fd", border: "1px solid rgba(139,92,246,0.2)",
+                      }}>{prod.category}</span>
+                      <span style={{ fontSize: 11, color: "var(--text-muted)" }}>${prod.price.toFixed(2)}</span>
+                      <span style={{ fontSize: 11, color: "#f59e0b" }}>★ {prod.rating}</span>
                     </div>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    <div className={`text-lg font-bold ${
-                      prod.similarity_pct > 75 ? "text-emerald-600"
-                      : prod.similarity_pct > 50 ? "text-indigo-600"
-                      : "text-gray-500"
-                    }`}>
-                      {prod.similarity_pct.toFixed(1)}%
-                    </div>
-                    <p className="text-xs text-gray-400">similarity</p>
-                    <div className="w-24 h-1.5 bg-gray-100 rounded-full mt-1 overflow-hidden">
-                      <div className="h-full bg-violet-500 rounded-full" style={{ width: `${prod.similarity_pct}%` }} />
+                  <div style={{ textAlign: "right", flexShrink: 0 }}>
+                    <div style={{
+                      fontSize: 17, fontWeight: 800,
+                      color: prod.similarity_pct > 75 ? "#10b981" : prod.similarity_pct > 55 ? "#a78bfa" : "var(--text-muted)",
+                    }}>{prod.similarity_pct.toFixed(1)}%</div>
+                    <p style={{ fontSize: 10, color: "var(--text-muted)", marginTop: 2 }}>similarity</p>
+                    <div style={{ width: 80, height: 3, background: "rgba(255,255,255,0.08)", borderRadius: 99, marginTop: 4, overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${prod.similarity_pct}%`, background: "linear-gradient(90deg,#7c3aed,#a78bfa)", borderRadius: 99 }} />
                     </div>
                   </div>
                 </div>

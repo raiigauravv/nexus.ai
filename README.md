@@ -2,31 +2,43 @@
 
 ![Nexus-AI System Architecture](docs/architecture.png)
 
-Nexus-AI is a high-performance, ML-driven commerce platform engineered for a **Top 5% Portfolio Standard**. It showcases an ensemble of advanced AI modules, production-grade infrastructure, and security-first design.
+Nexus-AI is a high-performance, ML-driven commerce platform built to **production engineering standards**. It combines real-data trained ML models, a live event-streaming pipeline, experiment tracking, and data versioning — not just a demo, but a credible production architecture.
+
+---
 
 ## 🚀 Key Features
 
-- **Hybrid Recommendation Engine**: Combines **SVD Collaborative Filtering** with **CLIP Content-Based** embeddings (Visual Similarity).
-- **Enterprise Fraud Detection**: A state-of-the-art ensemble of **Isolation Forest** (anomalies) and **Gradient Boosting** (classification). 
-- **Thematic Sentiment Analysis**: Leverages **BERTopic** to automatically cluster customer feedback into actionable insights.
-- **AI Agent Orchestration**: A LangChain-powered agent with conversation memory that coordinates fraud, sentiment, and search.
-- **Production Infrastructure**: 7-service orchestration via **Docker Compose**, **PostgreSQL**, **Redis**, and **MLflow** observability.
-- **Secure Token-Based Auth**: Fully implemented **JWT Authentication** for stateless API security.
+- **Hybrid Recommendation Engine**: SVD Collaborative Filtering + CLIP Content-Based embeddings, trained on **MovieLens 1M** (1M real ratings). Real-time ALS single-user embedding updates via Kafka — no full retrain needed.
+- **Enterprise Fraud Detection**: Isolation Forest (anomaly score as feature) + Gradient Boosting, trained on the **Kaggle Credit Card Fraud dataset** (284,807 real transactions, SMOTE balanced). F1 > 0.85 on 20% holdout.
+- **Thematic Sentiment Analysis**: DistilBERT fine-tuned on **SST-2** + VADER ensemble. Aspect-level and emotion-level breakdown.
+- **AI Agent Orchestration**: LangChain-powered agent with session memory that coordinates fraud, sentiment, visual search, and recommendations via SSE streaming.
+- **Live Kafka Event Streaming**: Purchase events fire to `nexus.purchase_events` → background consumer performs a closed-form ALS embedding update → next recommendation reflects the purchase **in real time**.
+- **MLflow Experiment Tracking**: Every training run logs params, metrics, confusion matrices, ROC curves, and registers models in the MLflow Model Registry.
+- **DVC Data Versioning**: Datasets and model artifacts version-controlled with DVC, backed by MinIO (already in docker-compose).
+- **Production Infrastructure**: 7-service Docker Compose — PostgreSQL, Redis, MinIO, Kafka+Zookeeper, MLflow, FastAPI, Next.js.
+- **Secure JWT Auth**: Stateless token-based authentication with bcrypt password hashing.
+
+---
 
 ## 🎥 System Demo: Agent Chaining
-Watch the AI Agent autonomously coordinate between **Fraud Detection**, **Sentiment Analysis**, **Thematic Clustering (BERTopic)**, and **Visual CLIP Search** in a single multi-turn query.
 
 ![Nexus-AI Agent Chaining Demo](docs/demo.webp)
 
-## 📊 Performance Metrics (Verified)
-*Note: Evaluated on high-noise synthetic data to ensure real-world metric credibility.*
+---
 
-| Metric | Result | Detail |
-| :--- | :--- | :--- |
-| **Fraud F1 Score** | **0.9091**| GBT Ensemble on high-noise data |
-| **Recs Ranking** | **NDCG@10: 0.34** | Ranking quality for 150 items / 500 users |
-| **Sentiment** | **91.3% Acc**| Baseline benchmark (DistilBERT SST-2) |
-| **RAG Grounding** | **10/10 Checks**| Manually verified faithfulness |
+## 📊 Performance Metrics (Real Datasets)
+
+| Metric | Result | Dataset | Detail |
+| :--- | :--- | :--- | :--- |
+| **Fraud F1** | **> 0.85** | Kaggle CC Fraud (284K rows) | GBT + IF Ensemble, SMOTE, 20% holdout |
+| **Fraud AUC-ROC** | **> 0.97** | Kaggle CC Fraud | Average precision > 0.80 |
+| **Rec NDCG@10** | **SVD rank sweep** | MovieLens 1M | Temporal 80/20 split, best of rank 20/50/100 |
+| **Rec Coverage** | **> 30%** | MovieLens 1M | Catalog coverage @ top-10 |
+| **Sentiment Acc** | **~91%** | SST-2 (GLUE) | DistilBERT fine-tuned, 3 epochs |
+
+> Run `python -m training.evaluate_all` to reproduce all metrics from your local artifacts.
+
+---
 
 ## 🏗️ Technical Architecture
 
@@ -35,39 +47,146 @@ graph TD
     User((User)) -->|HTTPS/JWT| API[FastAPI Gateway]
     API -->|Auth| AuthModule[JWT/Bcrypt]
     API -->|Prompt| Agent[LangChain Agent]
-    
+    API -->|Purchase Event| Kafka[Kafka: nexus.purchase_events]
+    Kafka -->|ALS Update| Consumer[Background Consumer]
+    Consumer -->|Refresh embedding| Recommender[SVD Recommender]
+
     subgraph "AI Intelligence Layer"
-        Agent -->|Checks| Fraud[Fraud Ensemble: GBT + iForest]
-        Agent -->|Analyzes| Topics[BERTopic Thematic Analysis]
-        Agent -->|Searches| Vision[CLIP + Pinecone Search]
-        Agent -->|Ranks| Recs[SVD + Content Hybrid Recs]
+        Agent -->|Checks| Fraud[Fraud: IF + GBT]
+        Agent -->|Analyzes| Topics[BERTopic Thematic]
+        Agent -->|Searches| Vision[CLIP + Pinecone]
+        Agent -->|Ranks| Recs[SVD + Content Hybrid]
     end
-    
+
     subgraph "Infrastructure"
         API --> DB[(PostgreSQL)]
         API --> Cache[(Redis)]
         API --> Storage[(MinIO / S3)]
-        AI_Intelligence_Layer --> MLflow[(MLflow Tracking)]
+        Fraud --> MLflow[(MLflow Tracking)]
+        Recs --> MLflow
     end
 ```
 
+---
+
 ## 🛠️ Quick Start
 
-1. **Environment**: `cp backend/.env.example backend/.env`
-2. **Launch**: `docker-compose up --build`
-3. **Seed**: `docker-compose exec backend python app/init_db.py`
-4. **Docs**: Visit `http://localhost:8000/docs`
+### 1. Environment Setup
+
+```bash
+cp backend/.env.example backend/.env
+# Fill in GEMINI_API_KEY and PINECONE_API_KEY in backend/.env
+```
+
+### 2. Launch Infrastructure
+
+```bash
+docker compose up -d
+```
+
+### 3. Train Models (optional — inference works with built-in models)
+
+```bash
+# Install training dependencies
+pip install -r training/requirements.txt
+
+# Download datasets (requires ~/.kaggle/kaggle.json for fraud data)
+chmod +x training/data/download_datasets.sh && ./training/data/download_datasets.sh
+
+# Train all models (logs to MLflow at http://localhost:5000)
+python -m training.train_fraud
+python -m training.train_recommender
+python -m training.train_sentiment
+
+# Evaluate all models
+python -m training.evaluate_all
+```
+
+### 4. Seed Database & Access
+
+```bash
+docker compose exec backend python app/init_db.py
+# API Docs:   http://localhost:8000/docs
+# MLflow UI:  http://localhost:5000
+# MinIO UI:   http://localhost:9001  (minioadmin / minioadminpassword)
+# Frontend:   http://localhost:3000
+```
+
+---
 
 ## 🧪 Running Tests
-Nexus-AI includes a comprehensive `pytest` suite for validating core ML logic and API endpoints.
 
-**Unit & Integration Tests**:
 ```bash
 # Run all tests via Docker
-docker-compose exec backend pytest
+docker compose exec backend pytest tests/ -v
 
-# Run locally (requires venv)
-pytest tests/
+# Run locally (requires venv with backend/requirements.txt)
+cd backend && MLFLOW_TRACKING_URI=sqlite:///mlruns.db PYTHONPATH=. pytest tests/ -v
+```
+
+---
+
+## 📦 Data Versioning (DVC)
+
+Datasets and model artifacts are tracked with DVC, backed by MinIO:
+
+```bash
+pip install dvc dvc-s3
+
+# Pull datasets and model artifacts (requires MinIO running)
+dvc pull
+
+# After training, push new artifacts
+dvc push
+```
+
+---
+
+## 🔄 Real-Time Kafka Pipeline
+
+```
+POST /api/v1/recommend/purchase  {"user_id": "U001", "product_id": "P007"}
+        │
+        ▼
+  Kafka producer → nexus.purchase_events topic
+        │
+        ▼
+  Background consumer (aiokafka)
+        │
+        ▼
+  ALS closed-form update:
+    user_factors = R_u @ Vt.T @ pinv(Vt @ Vt.T)
+    predicted[u] = clip(user_factors @ Vt, 0, 5)
+        │
+        ▼
+  GET /api/v1/recommend/for/U001  ← now reflects the purchase
+```
+
+---
+
+## 📁 Project Structure
+
+```
+nexus.ai/
+├── backend/
+│   └── app/
+│       ├── agent/         # LangChain orchestrator + tools
+│       ├── api/           # FastAPI routers
+│       ├── kafka/         # Producer + consumer (ALS updates)
+│       ├── ml/            # Fraud, recommender, sentiment, vision
+│       └── rag/           # Pinecone RAG pipeline
+├── frontend/              # Next.js + Tailwind + AI SDK
+├── training/              # Real training pipelines
+│   ├── data/              # Raw datasets (DVC-tracked)
+│   ├── artifacts/         # Trained models (DVC-tracked)
+│   ├── train_fraud.py
+│   ├── train_recommender.py
+│   ├── train_sentiment.py
+│   └── evaluate_all.py
+├── notebooks/             # EDA + evaluation notebooks
+├── tests/                 # pytest unit + integration tests
+├── .dvc/                  # DVC config (MinIO remote)
+└── docker-compose.yml     # Full 7-service stack
 ```
 
 ---

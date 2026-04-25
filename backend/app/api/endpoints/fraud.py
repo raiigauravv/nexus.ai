@@ -17,6 +17,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from app.ml.fraud_model import predict_fraud, MERCHANT_CATEGORIES, get_model
+from app.kafka.producer import publish_fraud_alert
 
 logger = logging.getLogger(__name__)
 
@@ -116,9 +117,22 @@ async def analyze_transaction(tx: Transaction):
         tx_dict["timestamp"] = datetime.datetime.now().isoformat()
 
     result = predict_fraud(tx_dict)
+
+    # Fire Kafka alert for high-confidence fraud
+    if result.get("fraud_score", 0) > 0.70:
+        await publish_fraud_alert(
+            transaction_id    = tx_dict["transaction_id"],
+            cardholder_id     = tx_dict.get("cardholder_id"),
+            amount            = tx_dict["amount"],
+            fraud_score       = result["fraud_score"],
+            risk_level        = result["risk_level"],
+            merchant_category = tx_dict["merchant_category"],
+            reasons           = result.get("reasons", []),
+        )
+
     return {
         "transaction": tx_dict,
-        "prediction": result,
+        "prediction":  result,
     }
 
 

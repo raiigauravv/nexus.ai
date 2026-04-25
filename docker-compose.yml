@@ -1,4 +1,3 @@
-version: '3.8'
 
 services:
   postgres:
@@ -40,7 +39,7 @@ services:
     volumes:
       - minio_data:/data
     command: server /data --console-address ":9001"
-    
+
   # Minio initialization (create buckets)
   minio-init:
     image: minio/mc
@@ -85,22 +84,20 @@ services:
     image: ghcr.io/mlflow/mlflow:v2.12.2
     container_name: nexus_mlflow
     ports:
-      - "5000:5000"
+      - "5001:5000"   # 5000 is reserved by macOS AirPlay
     environment:
       - MLFLOW_S3_ENDPOINT_URL=http://minio:9000
       - AWS_ACCESS_KEY_ID=minioadmin
       - AWS_SECRET_ACCESS_KEY=minioadminpassword
+    volumes:
+      - mlflow_data:/mlflow
     command: >
       mlflow server
-      --backend-store-uri sqlite:///:memory:
+      --backend-store-uri sqlite:////mlflow/mlruns.db
       --default-artifact-root s3://nexus-documents/mlflow
       --host 0.0.0.0
 
-volumes:
-  postgres_data:
-  redis_data:
-  minio_data:
-
+  # FIX: backend and frontend moved back under services (were incorrectly nested under volumes)
   backend:
     build:
       context: ./backend
@@ -115,6 +112,14 @@ volumes:
       - POSTGRES_DB=nexus_db
       - MINIO_SERVER=minio:9000
       - REDIS_URL=redis://redis:6379/0
+      - JWT_SECRET_KEY=b313a20d729490797f4d6c080b0baf50b247fe2bca1dd4760884e4d0a4bfc6e5
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - PINECONE_API_KEY=pcsk_7TH5Nc_CMGW5KFjZRHXkYFAXsq4gKc9jeQWMcyDx8CAj7U1qwujBz4UPaUsU2LazRXYcm
+      - PINECONE_INDEX_NAME=nexus-ai-rag
+      - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - FRONTEND_URL=http://localhost:3000
     depends_on:
       postgres:
@@ -135,3 +140,9 @@ volumes:
       - NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1
     depends_on:
       - backend
+
+volumes:
+  postgres_data:
+  redis_data:
+  minio_data:
+  mlflow_data:

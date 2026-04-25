@@ -188,6 +188,8 @@ function ProductCard({ product, showScore = true, showReason = true }: {
   );
 }
 
+import { useAuth } from "@/context/AuthContext";
+
 export default function RecommendationDashboard() {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -195,14 +197,15 @@ export default function RecommendationDashboard() {
   const [trending, setTrending] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"for-you" | "trending">("for-you");
+  const { user: authUser } = useAuth();
 
   // Load users + trending on mount
   useEffect(() => {
     fetch(`${BACKEND}/recommend/users`)
       .then((r) => r.json())
       .then((d) => {
-        setUsers(d.users || []);
-        if (d.users?.length > 0) setSelectedUser(d.users[0]);
+        let fetchedUsers = d.users || [];
+        setUsers(fetchedUsers);
       })
       .catch(console.error);
 
@@ -211,6 +214,20 @@ export default function RecommendationDashboard() {
       .then((d) => setTrending(d.trending || []))
       .catch(console.error);
   }, []);
+
+  // Update selectedUser if authUser changes
+  useEffect(() => {
+    if (authUser) {
+      setSelectedUser({
+        id: authUser.id,
+        name: authUser.name,
+        avatar: "👤",
+        persona: authUser.persona,
+      });
+    } else if (users.length > 0 && !selectedUser) {
+      setSelectedUser(users[0]);
+    }
+  }, [authUser, users, selectedUser]);
 
   // Fetch recommendations when user changes
   const fetchRecommendations = useCallback(async (user: User) => {

@@ -51,18 +51,16 @@ VISUAL SEARCH:
                                       (e.g. "wireless charging pad"). Returns similar catalog items.
 
 RULES:
-- ALWAYS use the most relevant tool(s). Never improvise data you could get from a tool.
-- Chain tools when a query spans multiple domains — you support up to 8 tool calls per response.
+- ALWAYS use tools when available. Never make up data you could get from a tool.
+- Call ONE tool per turn. The loop will run again — chain tools across multiple turns.
 - For detect_fraud, construct valid JSON from the user's description.
-- For cross-module queries (e.g. "which products should we avoid recommending?"), call
-  explain_product_complaints AND get_recommendations/smart_product_recommendations in sequence.
 - Use conversation history context — if someone says "that product" or "same user", refer back.
 - After all tools have run, synthesize into a clear, structured, friendly final response.
 - Format with Markdown headers if multiple tools were used.
 - Be confident and authoritative — you are backed by real ML models."""
 
 
-FALLBACK_MODELS = ["gemini-2.5-flash"]
+FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-001"]
 
 # ── Per-session in-memory conversation store ───────────────────────────────────
 # Maps session_id → list of BaseMessage (human + AI turns, last 10 kept)
@@ -93,6 +91,8 @@ _model_idx = 0
 
 
 def _build_llm(model: str):
+    # Note: ChatGoogleGenerativeAI does not support tool_choice or parallel_tool_calls.
+    # Sequential single-tool behavior is enforced via the system prompt instead.
     return ChatGoogleGenerativeAI(
         model=model,
         google_api_key=settings.GEMINI_API_KEY,
@@ -188,9 +188,14 @@ async def run_agent_stream(
                 # No more tool calls — extract final answer
                 break
 
+            # ── IMPORTANT: Gemini does NOT support multiple function calls in  ──
+            # one response. Only process the first tool call per iteration.      ──
+            # Multi-tool queries are handled across successive loop iterations.  ──
+            tool_calls = tool_calls[:1]
+
             yield _sse({
                 "type": "status",
-                "text": f"🔧 Running {len(tool_calls)} tool{'s' if len(tool_calls) > 1 else ''}...",
+                "text": f"🔧 Running tool...",
             })
             await asyncio.sleep(0.05)
 

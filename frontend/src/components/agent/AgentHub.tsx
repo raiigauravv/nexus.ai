@@ -2,23 +2,21 @@
 
 import { useState, useRef, useEffect } from "react";
 import {
-  Zap,
   Send,
   RefreshCw,
   Bot,
   User,
   ChevronDown,
   ChevronUp,
-  Wrench,
   CheckCircle,
   Sparkles,
   Brain,
-  MessageSquare,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 
 const BACKEND = "http://localhost:8000/api/v1";
 
-// ── Types ──────────────────────────────────────────────────────────────────────
 interface ToolStep {
   tool: string;
   input: string;
@@ -35,90 +33,69 @@ interface AgentMessage {
   statusText: string;
 }
 
-// ── Tool metadata ──────────────────────────────────────────────────────────────
-const TOOL_META: Record<string, { icon: string; color: string; label: string }> = {
-  analyze_sentiment:             { icon: "💬", color: "bg-teal-50 border-teal-200 text-teal-700",   label: "Sentiment Analysis" },
-  detect_fraud:                  { icon: "🛡️", color: "bg-red-50 border-red-200 text-red-700",     label: "Fraud Detection" },
-  get_recommendations:           { icon: "⭐", color: "bg-violet-50 border-violet-200 text-violet-700", label: "Recommendations" },
-  query_documents:               { icon: "📚", color: "bg-blue-50 border-blue-200 text-blue-700",  label: "Document Q&A (RAG)" },
-  get_trending_products:         { icon: "🔥", color: "bg-orange-50 border-orange-200 text-orange-700", label: "Trending Products" },
-  smart_product_recommendations: { icon: "🧠", color: "bg-indigo-50 border-indigo-200 text-indigo-700", label: "Smart Recs (Cross-Module)" },
-  explain_product_complaints:    { icon: "📊", color: "bg-rose-50 border-rose-200 text-rose-700",  label: "Product Complaints" },
-  find_visually_similar_products:{ icon: "🖼️", color: "bg-purple-50 border-purple-200 text-purple-700", label: "Visual Search (CLIP)" },
+const TOOL_META: Record<string, { icon: string; accent: string; label: string }> = {
+  analyze_sentiment:             { icon: "💬", accent: "rgba(6,182,212,0.15)",   label: "Sentiment Analysis" },
+  detect_fraud:                  { icon: "🛡️", accent: "rgba(244,63,94,0.15)",  label: "Fraud Detection" },
+  get_recommendations:           { icon: "⭐", accent: "rgba(139,92,246,0.15)",  label: "Recommendations" },
+  query_documents:               { icon: "📚", accent: "rgba(59,130,246,0.15)",  label: "Document Q&A (RAG)" },
+  get_trending_products:         { icon: "🔥", accent: "rgba(249,115,22,0.15)",  label: "Trending Products" },
+  smart_product_recommendations: { icon: "🧠", accent: "rgba(99,102,241,0.15)",  label: "Smart Recs" },
+  explain_product_complaints:    { icon: "📊", accent: "rgba(244,63,94,0.12)",   label: "Product Complaints" },
+  find_visually_similar_products:{ icon: "🖼️", accent: "rgba(139,92,246,0.15)", label: "Visual Search (CLIP)" },
 };
 
-// Example prompts that showcase multi-tool capabilities
 const EXAMPLE_PROMPTS = [
-  {
-    label: "Sentiment + Fraud",
-    icon: "💬🛡️",
-    text: "Analyze the sentiment of this review: 'Absolutely terrible service!' and check if a $4,800 ATM withdrawal at midnight is suspicious.",
-  },
-  {
-    label: "Recommendations",
-    icon: "⭐",
-    text: "What products would you recommend for user U003 and what's trending right now?",
-  },
-  {
-    label: "Smart Recs (Cross-Module)",
-    icon: "🧠",
-    text: "Give me smart product recommendations for user U001 — consider their fraud risk level and how well-reviewed each product is.",
-  },
-  {
-    label: "Product Complaints",
-    icon: "📊",
-    text: "Which Electronics products should we stop recommending based on recent customer complaints?",
-  },
-  {
-    label: "Visual Search",
-    icon: "🖼️",
-    text: "Find products that look like a wireless charging pad from our catalog.",
-  },
-  {
-    label: "Fraud Check",
-    icon: "🛡️",
-    text: "Is this transaction suspicious? Amount: $12,000, merchant: luxury goods, 3 transactions in the last hour, 800km from home.",
-  },
+  { label: "Recommendations", icon: "⭐", text: "What products would you recommend for user U003 and what's trending right now?" },
+  { label: "Smart Recs (Cross-Module)", icon: "🧠", text: "Give me smart product recommendations for user U001 — consider their fraud risk level and how well-reviewed each product is." },
+  { label: "Product Complaints", icon: "📊", text: "Which Electronics products should we stop recommending based on recent customer complaints?" },
+  { label: "Visual Search", icon: "🖼️", text: "Find products that look like a wireless charging pad from our catalog." },
+  { label: "Fraud Check", icon: "🛡️", text: "Is this transaction suspicious? Amount: $12,000, merchant: luxury goods, 3 transactions in the last hour, 800km from home." },
+  { label: "Sentiment Analysis", icon: "💬", text: "Analyze the sentiment of this customer review: 'The product arrived late but the quality exceeded my expectations. Support team was responsive.'" },
 ];
 
-// ── Sub-components ─────────────────────────────────────────────────────────────
 function ToolCard({ step }: { step: ToolStep }) {
   const [expanded, setExpanded] = useState(false);
-  const meta = TOOL_META[step.tool] || { icon: "🔧", color: "bg-gray-50 border-gray-200 text-gray-700", label: step.tool };
+  const meta = TOOL_META[step.tool] || { icon: "🔧", accent: "rgba(139,92,246,0.1)", label: step.tool };
 
   return (
-    <div className={`rounded-xl border text-xs overflow-hidden transition-all ${meta.color}`}>
+    <div style={{
+      borderRadius: 10,
+      border: "1px solid rgba(139,92,246,0.2)",
+      background: meta.accent,
+      overflow: "hidden",
+      fontSize: 12,
+    }}>
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full flex items-center gap-2 px-3 py-2 hover:opacity-80 transition-opacity"
+        style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "transparent", border: "none", cursor: "pointer", color: "var(--text-secondary)" }}
       >
-        <span className="text-base">{meta.icon}</span>
-        <span className="font-semibold">{meta.label}</span>
+        <span style={{ fontSize: 14 }}>{meta.icon}</span>
+        <span style={{ fontWeight: 600, color: "var(--text-primary)" }}>{meta.label}</span>
         {step.status === "running" ? (
-          <RefreshCw className="w-3 h-3 ml-1 animate-spin opacity-60" />
+          <RefreshCw className="w-3 h-3 animate-spin" style={{ marginLeft: 2, color: "#a78bfa" }} />
         ) : (
-          <CheckCircle className="w-3 h-3 ml-1 opacity-60" />
+          <CheckCircle className="w-3 h-3" style={{ marginLeft: 2, color: "#10b981" }} />
         )}
-        <span className="ml-auto opacity-50">
+        <span style={{ marginLeft: "auto", color: "var(--text-muted)" }}>
           {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
         </span>
       </button>
 
       {expanded && (
-        <div className="border-t border-current/10 px-3 pb-3 pt-2 space-y-2">
+        <div style={{ borderTop: "1px solid rgba(139,92,246,0.15)", padding: "10px 12px", display: "flex", flexDirection: "column", gap: 8 }}>
           {step.input && (
             <div>
-              <p className="font-semibold opacity-60 mb-0.5">Input</p>
-              <p className="font-mono bg-white/50 rounded p-1.5 leading-relaxed whitespace-pre-wrap">
+              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 4 }}>Input</p>
+              <p style={{ fontFamily: "monospace", background: "rgba(0,0,0,0.3)", borderRadius: 6, padding: "6px 8px", color: "#a78bfa", fontSize: 11, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
                 {step.input.length > 200 ? step.input.slice(0, 200) + "…" : step.input}
               </p>
             </div>
           )}
           {step.output && step.status === "done" && (
             <div>
-              <p className="font-semibold opacity-60 mb-0.5">Result</p>
-              <p className="font-mono bg-white/50 rounded p-1.5 leading-relaxed whitespace-pre-wrap">
-                {step.output.length > 400 ? step.output.slice(0, 400) + "…" : step.output}
+              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.08em", color: "var(--text-muted)", textTransform: "uppercase", marginBottom: 4 }}>Result</p>
+              <p style={{ fontFamily: "monospace", background: "rgba(0,0,0,0.3)", borderRadius: 6, padding: "6px 8px", color: "var(--text-secondary)", fontSize: 11, whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
+                {step.output.length > 500 ? step.output.slice(0, 500) + "…" : step.output}
               </p>
             </div>
           )}
@@ -132,45 +109,45 @@ function AssistantBubble({ msg }: { msg: AgentMessage }) {
   const isStreaming = msg.status !== "done" && msg.status !== "error";
 
   return (
-    <div className="flex gap-3 items-start">
-      {/* Brain Avatar */}
-      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center flex-shrink-0 shadow-sm mt-0.5">
-        <Brain className="w-4 h-4 text-white" />
+    <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+      <div style={{
+        width: 32, height: 32, borderRadius: 10,
+        background: "linear-gradient(135deg, #7c3aed, #6d28d9)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        flexShrink: 0, boxShadow: "0 0 16px rgba(124,58,237,0.4)",
+      }}>
+        <Brain className="w-4 h-4" style={{ color: "#e9d5ff" }} />
       </div>
 
-      <div className="flex-1 space-y-2.5 max-w-none">
-        {/* Status badge */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
         {isStreaming && (
-          <div className="flex items-center gap-1.5 text-xs text-indigo-500 font-medium">
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#a78bfa", fontWeight: 500 }}>
             <RefreshCw className="w-3 h-3 animate-spin" />
             {msg.statusText}
           </div>
         )}
 
-        {/* Tool steps */}
         {msg.toolSteps.length > 0 && (
-          <div className="space-y-1.5">
-            {msg.toolSteps.map((step, i) => (
-              <ToolCard key={i} step={step} />
-            ))}
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {msg.toolSteps.map((step, i) => <ToolCard key={i} step={step} />)}
           </div>
         )}
 
-        {/* Final answer */}
         {msg.content && (
-          <div className="bg-white border border-gray-100 rounded-xl px-4 py-3 shadow-sm">
-            <div className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">
+          <div className="chat-msg-ai prose-dark" style={{ maxWidth: "none" }}>
+            <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.7, fontSize: 14 }}>
               {msg.content}
               {isStreaming && msg.status === "writing" && (
-                <span className="inline-block w-1.5 h-4 bg-indigo-500 ml-0.5 animate-pulse rounded-sm align-middle" />
+                <span style={{ display: "inline-block", width: 2, height: 16, background: "#a78bfa", marginLeft: 2, animation: "pulse-dot 0.8s infinite", borderRadius: 1, verticalAlign: "middle" }} />
               )}
             </div>
           </div>
         )}
 
         {msg.status === "error" && (
-          <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
-            ⚠️ {msg.content}
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 8, padding: "12px 14px", background: "rgba(244,63,94,0.1)", border: "1px solid rgba(244,63,94,0.3)", borderRadius: 12, fontSize: 13, color: "#fca5a5" }}>
+            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "#f43f5e" }} />
+            <span>{msg.content}</span>
           </div>
         )}
       </div>
@@ -180,18 +157,19 @@ function AssistantBubble({ msg }: { msg: AgentMessage }) {
 
 function UserBubble({ content }: { content: string }) {
   return (
-    <div className="flex gap-3 items-start justify-end">
-      <div className="bg-indigo-600 text-white rounded-xl px-4 py-3 text-sm max-w-[75%] shadow-sm">
-        {content}
-      </div>
-      <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 mt-0.5">
-        <User className="w-4 h-4 text-gray-600" />
+    <div style={{ display: "flex", gap: 12, alignItems: "flex-start", justifyContent: "flex-end" }}>
+      <div className="chat-msg-user">{content}</div>
+      <div style={{
+        width: 32, height: 32, borderRadius: 10,
+        background: "var(--bg-elevated)", border: "1px solid var(--border)",
+        display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+      }}>
+        <User className="w-4 h-4" style={{ color: "var(--text-muted)" }} />
       </div>
     </div>
   );
 }
 
-// ── Main Component ─────────────────────────────────────────────────────────────
 export default function AgentHub() {
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [input, setInput] = useState("");
@@ -208,31 +186,11 @@ export default function AgentHub() {
     setIsRunning(true);
     setInput("");
 
-    // Build history for context (last 6 turns)
-    const history = messages.slice(-6).map((m) => ({
-      role: m.role,
-      content: m.content || m.statusText,
-    }));
+    const history = messages.slice(-6).map((m) => ({ role: m.role, content: m.content || m.statusText }));
 
-    // Add user message
-    const userMsg: AgentMessage = {
-      id: Date.now().toString(),
-      role: "user",
-      content: text,
-      toolSteps: [],
-      status: "done",
-      statusText: "",
-    };
-
+    const userMsg: AgentMessage = { id: Date.now().toString(), role: "user", content: text, toolSteps: [], status: "done", statusText: "" };
     const assistantId = (Date.now() + 1).toString();
-    const assistantMsg: AgentMessage = {
-      id: assistantId,
-      role: "assistant",
-      content: "",
-      toolSteps: [],
-      status: "thinking",
-      statusText: "🧠 NEXUS Agent is thinking...",
-    };
+    const assistantMsg: AgentMessage = { id: assistantId, role: "assistant", content: "", toolSteps: [], status: "thinking", statusText: "🧠 NEXUS Agent is thinking..." };
 
     setMessages((prev) => [...prev, userMsg, assistantMsg]);
 
@@ -254,23 +212,17 @@ export default function AgentHub() {
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n\n");
         buffer = lines.pop() || "";
-
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
-          try {
-            const payload = JSON.parse(line.slice(6));
-            handleSSEEvent(payload, assistantId);
-          } catch {}
+          try { handleSSEEvent(JSON.parse(line.slice(6)), assistantId); } catch {}
         }
       }
     } catch (e: unknown) {
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.id === assistantId
-            ? { ...m, status: "error", content: e instanceof Error ? e.message : "Connection failed", statusText: "" }
-            : m
-        )
-      );
+      setMessages((prev) => prev.map((m) =>
+        m.id === assistantId
+          ? { ...m, status: "error", content: e instanceof Error ? e.message : "Connection failed", statusText: "" }
+          : m
+      ));
     } finally {
       setIsRunning(false);
       inputRef.current?.focus();
@@ -278,127 +230,92 @@ export default function AgentHub() {
   };
 
   const handleSSEEvent = (payload: Record<string, string>, assistantId: string) => {
-    setMessages((prev) =>
-      prev.map((msg) => {
-        if (msg.id !== assistantId) return msg;
-
-        switch (payload.type) {
-          case "status":
-            return { ...msg, statusText: payload.text, status: "thinking" };
-
-          case "tool_start": {
-            const newStep: ToolStep = {
-              tool: payload.tool,
-              input: payload.input || "",
-              output: "",
-              status: "running",
-            };
-            return {
-              ...msg,
-              status: "using-tools",
-              statusText: `🔧 Running ${TOOL_META[payload.tool]?.label || payload.tool}...`,
-              toolSteps: [...msg.toolSteps, newStep],
-            };
-          }
-
-          case "tool_result": {
-            const updatedSteps = msg.toolSteps.map((s) =>
-              s.tool === payload.tool && s.status === "running"
-                ? { ...s, output: payload.output, status: "done" as const }
-                : s
-            );
-            return { ...msg, toolSteps: updatedSteps };
-          }
-
-          case "text_delta":
-            return {
-              ...msg,
-              status: "writing",
-              statusText: "✍️ Writing response...",
-              content: msg.content + payload.text,
-            };
-
-          case "error":
-            return { ...msg, status: "error", content: payload.text, statusText: "" };
-
-          case "done":
-            return { ...msg, status: "done", statusText: "" };
-
-          default:
-            return msg;
-        }
-      })
-    );
+    setMessages((prev) => prev.map((msg) => {
+      if (msg.id !== assistantId) return msg;
+      switch (payload.type) {
+        case "status":      return { ...msg, statusText: payload.text, status: "thinking" };
+        case "tool_start":  return { ...msg, status: "using-tools", statusText: `🔧 Running ${TOOL_META[payload.tool]?.label || payload.tool}...`, toolSteps: [...msg.toolSteps, { tool: payload.tool, input: payload.input || "", output: "", status: "running" }] };
+        case "tool_result": return { ...msg, toolSteps: msg.toolSteps.map((s) => s.tool === payload.tool && s.status === "running" ? { ...s, output: payload.output, status: "done" as const } : s) };
+        case "text_delta":  return { ...msg, status: "writing", statusText: "✍️ Writing response...", content: msg.content + payload.text };
+        case "error":       return { ...msg, status: "error", content: payload.text, statusText: "" };
+        case "done":        return { ...msg, status: "done", statusText: "" };
+        default:            return msg;
+      }
+    }));
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage(input);
-    }
-  };
-
-  const clearChat = () => {
-    setMessages([]);
-    setInput("");
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(input); }
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-220px)] min-h-[520px]">
+    <div style={{ display: "flex", flexDirection: "column", height: "calc(100vh - 260px)", minHeight: 520 }}>
 
-      {/* Tool Legend Bar */}
-      <div className="flex flex-wrap gap-2 pb-4">
+      {/* Tool chips */}
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, paddingBottom: 14 }}>
         {Object.entries(TOOL_META).map(([key, meta]) => (
-          <span key={key} className={`text-xs px-2.5 py-1 rounded-full border font-medium ${meta.color}`}>
+          <span key={key} style={{
+            fontSize: 11, fontWeight: 500,
+            padding: "3px 10px", borderRadius: 99,
+            background: meta.accent,
+            border: "1px solid rgba(139,92,246,0.2)",
+            color: "var(--text-secondary)",
+          }}>
             {meta.icon} {meta.label}
           </span>
         ))}
         {messages.length > 0 && (
           <button
-            onClick={clearChat}
-            className="ml-auto text-xs text-gray-400 hover:text-gray-600 transition-colors px-2 py-1 rounded hover:bg-gray-100"
+            onClick={() => setMessages([])}
+            style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "var(--text-muted)", background: "transparent", border: "1px solid var(--border)", borderRadius: 99, padding: "3px 10px", cursor: "pointer" }}
           >
-            Clear chat
+            <Trash2 className="w-3 h-3" /> Clear
           </button>
         )}
       </div>
 
-      {/* Message area */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-6 pr-1 scroll-smooth">
+      {/* Messages */}
+      <div ref={scrollRef} className="nx-scroll" style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 20, paddingRight: 4 }}>
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-6 py-8">
-            {/* Hero */}
-            <div className="text-center">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center mx-auto mb-4 shadow-md shadow-indigo-200">
-                <Brain className="w-8 h-8 text-white" />
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 24 }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{
+                width: 64, height: 64, borderRadius: 20,
+                background: "linear-gradient(135deg, rgba(124,58,237,0.3), rgba(109,40,217,0.2))",
+                border: "1px solid rgba(139,92,246,0.4)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                margin: "0 auto 16px",
+                boxShadow: "0 0 40px rgba(124,58,237,0.25)",
+              }}>
+                <Brain className="w-8 h-8" style={{ color: "#a78bfa" }} />
               </div>
-              <h2 className="text-xl font-bold text-gray-800">NEXUS Agent</h2>
-              <p className="text-sm text-gray-500 mt-1 max-w-md">
-                Ask anything. I automatically route across all 8 NEXUS-AI tools —
-                sentiment, fraud, recommendations, documents, trending, 
-                <span className="text-indigo-500 font-medium"> smart cross-module recs, product complaints, and visual search</span>.
+              <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--text-primary)" }}>NEXUS Agent</h2>
+              <p style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 6, maxWidth: 440, lineHeight: 1.6 }}>
+                Ask anything. Routes automatically across all 8 ML tools — sentiment, fraud, recommendations, documents, trending products, and visual search.
               </p>
             </div>
 
-            {/* Example prompts */}
-            <div className="w-full max-w-2xl space-y-2">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider text-center mb-3">
-                Try an example
-              </p>
+            <div style={{ width: "100%", maxWidth: 640, display: "flex", flexDirection: "column", gap: 8 }}>
+              <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--text-muted)", textAlign: "center", marginBottom: 4 }}>Try an example</p>
               {EXAMPLE_PROMPTS.map((ex, i) => (
                 <button
                   key={i}
                   onClick={() => sendMessage(ex.text)}
-                  className="w-full text-left p-3.5 rounded-xl bg-white border border-gray-100 hover:border-indigo-200 hover:bg-indigo-50/40 transition-all group shadow-sm"
+                  style={{
+                    width: "100%", textAlign: "left",
+                    padding: "12px 16px", borderRadius: 12,
+                    background: "var(--bg-elevated)",
+                    border: "1px solid var(--border)",
+                    cursor: "pointer", transition: "all 0.15s",
+                    display: "flex", alignItems: "flex-start", gap: 12,
+                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(139,92,246,0.4)"; (e.currentTarget as HTMLElement).style.background = "rgba(124,58,237,0.08)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "var(--border)"; (e.currentTarget as HTMLElement).style.background = "var(--bg-elevated)"; }}
                 >
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl">{ex.icon}</span>
-                    <div>
-                      <p className="text-xs font-semibold text-indigo-600 mb-0.5 group-hover:text-indigo-700">
-                        {ex.label}
-                      </p>
-                      <p className="text-sm text-gray-600 leading-snug">{ex.text}</p>
-                    </div>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>{ex.icon}</span>
+                  <div>
+                    <p style={{ fontSize: 11, fontWeight: 700, color: "#a78bfa", marginBottom: 3 }}>{ex.label}</p>
+                    <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.5 }}>{ex.text}</p>
                   </div>
                 </button>
               ))}
@@ -406,21 +323,24 @@ export default function AgentHub() {
           </div>
         ) : (
           messages.map((msg) =>
-            msg.role === "user" ? (
-              <UserBubble key={msg.id} content={msg.content} />
-            ) : (
-              <AssistantBubble key={msg.id} msg={msg} />
-            )
+            msg.role === "user"
+              ? <UserBubble key={msg.id} content={msg.content} />
+              : <AssistantBubble key={msg.id} msg={msg} />
           )
         )}
       </div>
 
-      {/* Input bar */}
-      <div className="pt-4 border-t border-gray-100 mt-4">
-        <div className={`flex items-end gap-3 bg-white border rounded-2xl px-4 py-3 shadow-sm transition-all duration-200
-          ${isRunning ? "border-indigo-200 bg-indigo-50/20" : "border-gray-200 hover:border-indigo-300 focus-within:border-indigo-400 focus-within:shadow-md focus-within:shadow-indigo-100/50"}`}
-        >
-          <Sparkles className="w-4 h-4 text-indigo-400 flex-shrink-0 mb-1" />
+      {/* Input */}
+      <div style={{ paddingTop: 16, borderTop: "1px solid var(--border)", marginTop: 16 }}>
+        <div style={{
+          display: "flex", alignItems: "flex-end", gap: 12,
+          background: "var(--bg-elevated)",
+          border: `1px solid ${isRunning ? "rgba(139,92,246,0.5)" : "var(--border)"}`,
+          borderRadius: 14, padding: "10px 14px",
+          boxShadow: isRunning ? "0 0 20px rgba(124,58,237,0.15)" : "none",
+          transition: "all 0.2s",
+        }}>
+          <Sparkles className="w-4 h-4 flex-shrink-0" style={{ color: "#7c3aed", marginBottom: 2 }} />
           <textarea
             ref={inputRef}
             value={input}
@@ -429,24 +349,31 @@ export default function AgentHub() {
             placeholder="Ask anything — I'll route to the right tool automatically…"
             rows={1}
             disabled={isRunning}
-            className="flex-1 text-sm text-gray-800 bg-transparent resize-none outline-none placeholder-gray-400 max-h-32 overflow-y-auto leading-relaxed disabled:opacity-50"
-            style={{ minHeight: "24px" }}
+            style={{
+              flex: 1, background: "transparent", border: "none", outline: "none",
+              fontSize: 14, color: "var(--text-primary)", resize: "none",
+              fontFamily: "inherit", lineHeight: 1.5, maxHeight: 120, overflowY: "auto",
+              minHeight: 24,
+            }}
           />
           <button
             onClick={() => sendMessage(input)}
             disabled={isRunning || !input.trim()}
-            className="flex-shrink-0 w-8 h-8 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors shadow-sm"
+            style={{
+              flexShrink: 0, width: 34, height: 34, borderRadius: 10,
+              background: isRunning || !input.trim() ? "rgba(124,58,237,0.3)" : "linear-gradient(135deg,#7c3aed,#6d28d9)",
+              border: "none", cursor: isRunning || !input.trim() ? "not-allowed" : "pointer",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              boxShadow: input.trim() && !isRunning ? "0 0 16px rgba(124,58,237,0.4)" : "none",
+              transition: "all 0.2s",
+            }}
           >
-            {isRunning ? (
-              <RefreshCw className="w-3.5 h-3.5 text-white animate-spin" />
-            ) : (
-              <Send className="w-3.5 h-3.5 text-white" />
-            )}
+            {isRunning ? <RefreshCw className="w-4 h-4 animate-spin" style={{ color: "#a78bfa" }} /> : <Send className="w-4 h-4" style={{ color: "#e9d5ff" }} />}
           </button>
         </div>
-        <p className="text-center text-xs text-gray-400 mt-2">
-          Press <kbd className="bg-gray-100 rounded px-1 text-gray-500">Enter</kbd> to send ·{" "}
-          <kbd className="bg-gray-100 rounded px-1 text-gray-500">Shift+Enter</kbd> for newline
+        <p style={{ textAlign: "center", fontSize: 11, color: "var(--text-muted)", marginTop: 8 }}>
+          Press <kbd style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: 4, padding: "0 5px", fontSize: 10 }}>Enter</kbd> to send ·{" "}
+          <kbd style={{ background: "var(--bg-elevated)", border: "1px solid var(--border)", borderRadius: 4, padding: "0 5px", fontSize: 10 }}>Shift+Enter</kbd> for newline
         </p>
       </div>
     </div>
