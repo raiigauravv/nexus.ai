@@ -4,12 +4,6 @@
 
 By combining real-world datasets with event streaming (Kafka), experiment tracking (MLflow), and an intuitive UI, Nexus-AI serves as a credible demonstration of end-to-end MLOps and full-stack AI engineering.
 
-## 🎥 Full System Walkthrough
-
-<video src="docs/nexus_demo.mp4" controls="controls" muted="muted" playsinline="playsinline" style="max-width: 100%;">
-  Your browser does not support the video tag.
-</video>
-
 ---
 
 ![Nexus-AI System Architecture](docs/architecture.png)
@@ -26,7 +20,15 @@ By combining real-world datasets with event streaming (Kafka), experiment tracki
 - **Production Infrastructure**: 7-service Docker Compose — PostgreSQL, Redis, MinIO, Kafka+Zookeeper, MLflow, FastAPI, Next.js.
 - **Secure JWT Auth**: Stateless token-based authentication with bcrypt password hashing.
 
+---
 
+## 🎥 Full System Walkthrough
+
+https://github.com/raiigauravv/nexus.ai/raw/main/docs/nexus_demo.mp4
+
+*(If the video doesn't automatically load, you can [download the raw MP4 directly here](https://raw.githubusercontent.com/raiigauravv/nexus.ai/main/docs/nexus_demo.mp4))*
+
+---
 
 ## 📊 Performance Metrics (Real Datasets)
 
