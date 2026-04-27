@@ -24,10 +24,9 @@ By combining real-world datasets with event streaming (Kafka), experiment tracki
 
 ## 🎥 Full System Walkthrough
 
-<video src="./docs/nexus_demo.mp4" controls="controls" muted="muted" playsinline="playsinline" style="max-width: 100%;">
-</video>
+[![Watch the Full System Walkthrough](docs/demo_preview.gif)](https://github.com/raiigauravv/nexus.ai/raw/main/docs/nexus_demo.mp4)
 
-*(If the video doesn't automatically load, you can [download the raw MP4 directly here](https://raw.githubusercontent.com/raiigauravv/nexus.ai/main/docs/nexus_demo.mp4))*
+*(Click the animation above to watch the full HD video walkthrough!)*
 
 ---
 
