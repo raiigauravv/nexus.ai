@@ -65,7 +65,13 @@ async def recommend_for_user(
     """
     user = next((u for u in USERS if u["id"] == user_id), None)
     if not user:
-        raise HTTPException(status_code=404, detail=f"User {user_id} not found.")
+        # Fallback for newly registered JWT users not present in the mock dataset
+        user = {
+            "id": user_id,
+            "name": user_id.capitalize(),
+            "avatar": user_id[:2].upper(),
+            "persona": "tech_professional"
+        }
 
     if cross_module:
         recs = get_sentiment_adjusted_recommendations(

@@ -117,7 +117,7 @@ def get_sentiment_adjusted_recommendations(
 
     for rec in base_recs:
         prod_id = rec["id"]
-        base_score = rec["recommendation_score"]
+        base_score = rec.get("score", 0.0)
         price = rec.get("price", 0)
 
         # ── Sentiment adjustment (20% weight) ──────────────────────────────────

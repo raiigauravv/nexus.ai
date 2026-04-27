@@ -11,30 +11,22 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.ml.sentiment import analyze, SAMPLE_REVIEWS, get_vader
+from app.ml.sentiment import analyze, SAMPLE_REVIEWS
 from app.ml.topics import get_product_complaint_themes, should_stop_recommending
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# Pre-warm
-try:
-    get_vader()
-    logger.info("Sentiment model ready.")
-except Exception as e:
-    logger.warning(f"Could not pre-warm sentiment model: {e}")
-
+# Top-level pre-warm removed to prevent blocking import. Will be handled in lifespan.
 
 class TextRequest(BaseModel):
     text: str = Field(..., min_length=1, max_length=5000)
 
-
 class BatchRequest(BaseModel):
     texts: List[str] = Field(..., max_length=20)
 
-
 @router.post("/sentiment/analyze")
-async def analyze_text(req: TextRequest):
+def analyze_text(req: TextRequest):
     """Analyze sentiment of a single text with aspect breakdown."""
     try:
         result = analyze(req.text)
