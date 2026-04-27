@@ -69,14 +69,14 @@ const CATEGORY_EMOJI: Record<string, string> = {
 };
 
 const PERSONA_LABELS: Record<string, string> = {
-  tech_professional: "Tech Professional",
-  fitness_enthusiast: "Fitness Enthusiast",
-  gamer: "Gamer",
-  bookworm: "Bookworm",
-  home_chef: "Home Chef",
-  fashionista: "Fashionista",
-  outdoor_adventurer: "Outdoor Adventurer",
-  beauty_enthusiast: "Beauty Enthusiast",
+  apple_fanboy: "Apple Fanboy",
+  android_power_user: "Android Power User",
+  mobile_gamer: "Mobile Gamer",
+  photography_enthusiast: "Photography Enthusiast",
+  budget_shopper: "Budget Shopper",
+  business_professional: "Business Professional",
+  audiophile: "Audiophile",
+  battery_optimizer: "Battery Optimizer",
 };
 
 function StarRating({ rating }: { rating: number }) {
@@ -170,7 +170,7 @@ function ProductCard({ product, showScore = true, showReason = true }: {
 
       {/* Tags */}
       <div className="flex flex-wrap gap-1 mt-3">
-        {product.tags.slice(0, 3).map((tag) => (
+        {(product.tags || []).slice(0, 3).map((tag: any) => (
           <span key={tag} className="text-xs bg-gray-100 text-gray-500 rounded px-1.5 py-0.5">
             #{tag}
           </span>
@@ -218,16 +218,16 @@ export default function RecommendationDashboard() {
   // Update selectedUser if authUser changes
   useEffect(() => {
     if (authUser) {
-      setSelectedUser({
+      setSelectedUser(prev => prev?.id === authUser.id ? prev : {
         id: authUser.id,
         name: authUser.name,
         avatar: "👤",
         persona: authUser.persona,
       });
-    } else if (users.length > 0 && !selectedUser) {
-      setSelectedUser(users[0]);
+    } else if (users.length > 0) {
+      setSelectedUser(prev => prev || users[0]);
     }
-  }, [authUser, users, selectedUser]);
+  }, [authUser, users]);
 
   // Fetch recommendations when user changes
   const fetchRecommendations = useCallback(async (user: User) => {

@@ -1,10 +1,18 @@
 # Nexus-AI: Enterprise-Grade Intelligent E-Commerce
 
-![Nexus-AI System Architecture](docs/architecture.png)
+**Nexus-AI** is a comprehensive, production-grade Machine Learning platform designed to showcase advanced AI capabilities within an e-commerce ecosystem. It features a suite of real-time ML pipelines including a Hybrid Recommendation Engine (SVD + Content-Based), Enterprise Fraud Detection, NLP Sentiment Analysis, and Computer Vision for product search. 
 
-Nexus-AI is a high-performance, ML-driven commerce platform built to **production engineering standards**. It combines real-data trained ML models, a live event-streaming pipeline, experiment tracking, and data versioning — not just a demo, but a credible production architecture.
+By combining real-world datasets with event streaming (Kafka), experiment tracking (MLflow), and an intuitive UI, Nexus-AI serves as a credible demonstration of end-to-end MLOps and full-stack AI engineering.
+
+## 🎥 Full System Walkthrough
+
+<video src="https://github.com/gauravvraii/nexus.ai/raw/main/docs/nexus_demo.mp4" controls="controls" style="max-width: 100%;">
+  Your browser does not support the video tag.
+</video>
 
 ---
+
+![Nexus-AI System Architecture](docs/architecture.png)
 
 ## 🚀 Key Features
 

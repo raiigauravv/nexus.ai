@@ -21,14 +21,14 @@ PRODUCTS = []
 
 # Mock users for the UI since the real Amazon dataset has 47,000+ anonymous users
 USERS = [
-    {"id": "U001", "name": "Alex Chen", "avatar": "👨‍💻", "persona": "tech_professional"},
-    {"id": "U002", "name": "Maria Garcia", "avatar": "🏃‍♀️", "persona": "fitness_enthusiast"},
-    {"id": "U003", "name": "Wei Zhang", "avatar": "🎮", "persona": "gamer"},
-    {"id": "U004", "name": "James Smith", "avatar": "📚", "persona": "bookworm"},
-    {"id": "U005", "name": "Emma Wilson", "avatar": "🍳", "persona": "home_chef"},
-    {"id": "U006", "name": "David Kim", "avatar": "📸", "persona": "outdoor_adventurer"},
-    {"id": "U007", "name": "Sarah Jones", "avatar": "✨", "persona": "beauty_enthusiast"},
-    {"id": "U008", "name": "Michael Brown", "avatar": "👔", "persona": "fashionista"},
+    {"id": "U001", "name": "Alex Chen", "avatar": "📱", "persona": "apple_fanboy"},
+    {"id": "U002", "name": "Maria Garcia", "avatar": "🤖", "persona": "android_power_user"},
+    {"id": "U003", "name": "Wei Zhang", "avatar": "🎮", "persona": "mobile_gamer"},
+    {"id": "U004", "name": "James Smith", "avatar": "📸", "persona": "photography_enthusiast"},
+    {"id": "U005", "name": "Emma Wilson", "avatar": "💸", "persona": "budget_shopper"},
+    {"id": "U006", "name": "David Kim", "avatar": "👔", "persona": "business_professional"},
+    {"id": "U007", "name": "Sarah Jones", "avatar": "🎧", "persona": "audiophile"},
+    {"id": "U008", "name": "Michael Brown", "avatar": "🔋", "persona": "battery_optimizer"},
 ]
 
 def _load_model() -> dict:
@@ -101,12 +101,16 @@ def get_recommendations(user_id: str, top_n: int = 6) -> List[Dict]:
     if not bundle.get("U") is not None:
         return get_trending(top_n)
 
-    # Use a real user from the dataset if not found (for demo purposes)
     u_id = bundle["user2id"].get(user_id)
     if u_id is None:
-        # Fallback to a random active user to show real recommendations
-        # User 0 usually has multiple interactions
-        u_id = 0 
+        # Hash the user_id to get a consistent random profile so each mock user gets unique recs
+        import hashlib
+        num_users = len(bundle["user_means"])
+        if num_users > 0:
+            hash_val = int(hashlib.md5(user_id.encode()).hexdigest(), 16)
+            u_id = hash_val % num_users
+        else:
+            u_id = 0
 
     user_vec = bundle["U"][u_id]
     user_mean = bundle["user_means"][u_id]

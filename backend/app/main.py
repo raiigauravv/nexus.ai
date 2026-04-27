@@ -29,6 +29,16 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"Kafka consumer failed to start (non-fatal): {e}")
 
+    # Pre-warm sentiment model
+    try:
+        from app.ml.sentiment import analyze
+        import asyncio
+        logger.info("Pre-warming sentiment model (this may take a few seconds)...")
+        await asyncio.to_thread(analyze, "warmup")
+        logger.info("Sentiment model pre-warmed successfully.")
+    except Exception as e:
+        logger.warning(f"Could not pre-warm sentiment model: {e}")
+
     yield
 
     # ── Shutdown ───────────────────────────────────────────────────────────────

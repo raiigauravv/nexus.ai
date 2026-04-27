@@ -253,9 +253,11 @@ def _build_product_embeddings():
     
     descriptions = []
     for prod in PRODUCTS:
+        # Truncate to ~150 chars to avoid exceeding CLIP's 77 token limit
+        short_name = prod['name'][:150]
         desc = PRODUCT_VISUAL_DESCRIPTIONS.get(
             prod["name"],
-            f"a {prod['category'].lower()} product: {prod['name']}"
+            f"a {prod['category'].lower()} product: {short_name}"
         )
         descriptions.append(desc)
 
