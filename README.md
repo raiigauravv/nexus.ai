@@ -26,13 +26,7 @@ By combining real-world datasets with event streaming (Kafka), experiment tracki
 - **Production Infrastructure**: 7-service Docker Compose — PostgreSQL, Redis, MinIO, Kafka+Zookeeper, MLflow, FastAPI, Next.js.
 - **Secure JWT Auth**: Stateless token-based authentication with bcrypt password hashing.
 
----
 
-## 🎥 System Demo: Agent Chaining
-
-![Nexus-AI Agent Chaining Demo](docs/demo.webp)
-
----
 
 ## 📊 Performance Metrics (Real Datasets)
 
