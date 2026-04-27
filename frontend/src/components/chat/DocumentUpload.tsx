@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { UploadCloud, File, CheckCircle, AlertCircle } from "lucide-react";
+import { apiUrl } from "@/lib/api";
 
 export default function DocumentUpload() {
   const [file, setFile] = useState<File | null>(null);
@@ -25,7 +26,7 @@ export default function DocumentUpload() {
     formData.append("namespace", "default");
 
     try {
-      const response = await fetch("http://localhost:8000/api/v1/ingest", {
+      const response = await fetch(apiUrl("/ingest"), {
         method: "POST",
         body: formData,
       });

@@ -14,8 +14,9 @@ import {
   Trash2,
   AlertTriangle,
 } from "lucide-react";
+import { API_BASE, apiUrl } from "@/lib/api";
 
-const BACKEND = "http://localhost:8000/api/v1";
+const BACKEND = API_BASE;
 
 interface ToolStep {
   tool: string;
@@ -195,7 +196,7 @@ export default function AgentHub() {
     setMessages((prev) => [...prev, userMsg, assistantMsg]);
 
     try {
-      const resp = await fetch(`${BACKEND}/agent/chat`, {
+      const resp = await fetch(apiUrl("/agent/chat"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message: text, history }),

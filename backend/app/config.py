@@ -9,14 +9,14 @@ class Settings(BaseSettings):
     
     # Database
     POSTGRES_USER: str = "nexus_user"
-    POSTGRES_PASSWORD: str = "nexus_password"
+    POSTGRES_PASSWORD: str = ""
     POSTGRES_DB: str = "nexus_db"
     POSTGRES_SERVER: str = "localhost"
     POSTGRES_PORT: str = "5432"
     
     # Storage (MinIO)
     MINIO_ROOT_USER: str = "minioadmin"
-    MINIO_ROOT_PASSWORD: str = "minioadminpassword"
+    MINIO_ROOT_PASSWORD: str = ""
     MINIO_SERVER: str = "localhost:9000"
     
     # Redis Cache/Broker
@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     PINECONE_VISION_INDEX: str = "nexus-ai-vision"
 
     # Auth / JWT
-    JWT_SECRET_KEY: str = "nexus-ai-super-secret-jwt-key-change-in-production"
+    JWT_SECRET_KEY: str = ""
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
 

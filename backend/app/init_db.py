@@ -1,15 +1,21 @@
 import logging
 from sqlalchemy.orm import Session
-from app.database import engine, Base
-from app.models import User, Product, Interaction, Review
+from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
+from app.models import User
 from app.ml.recommender import USERS
 
 logger = logging.getLogger(__name__)
 
 def init_db(db: Session):
-    Base.metadata.create_all(bind=engine)
-    
-    if db.query(User).first():
+    try:
+        has_existing_user = db.execute(select(User.id).limit(1)).scalar_one_or_none()
+    except SQLAlchemyError as exc:
+        raise RuntimeError(
+            "Database schema is not initialized. Run migrations with 'alembic upgrade head'."
+        ) from exc
+
+    if has_existing_user:
         logger.info("Database already initialized with data.")
         return
 

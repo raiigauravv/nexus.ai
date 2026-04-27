@@ -2,7 +2,7 @@ import json
 import asyncio
 import uuid
 import logging
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import List
@@ -13,10 +13,12 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage, AIMessage, BaseMessage
 from app.rag.vectorstore import get_vectorstore
 from app.config import settings
+from app.rate_limiter import rate_limiter
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+CHAT_LIMIT_PER_MINUTE = 40
 
 # Models confirmed available via ListModels API — primary is gemini-2.5-flash
 RAG_MODELS = [
@@ -66,6 +68,13 @@ def convert_messages(messages: List[dict]) -> List[BaseMessage]:
 
 def sse(data: dict) -> str:
     return f"data: {json.dumps(data)}\n\n"
+
+
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
 
 
 def _is_retryable(error: Exception) -> bool:
@@ -143,23 +152,35 @@ async def _stream_rag_with_retry(
 
 
 @router.post("/chat")
-async def chat(request: ChatRequest):
+async def chat(chat_request: ChatRequest, request: Request):
     """
     Streaming RAG chat endpoint with automatic model fallback on 503/429.
     """
     try:
-        if not request.messages:
+        allowed, retry_after = rate_limiter.allow(
+            f"rag-chat:{_client_ip(request)}",
+            limit=CHAT_LIMIT_PER_MINUTE,
+            window_seconds=60,
+        )
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many chat requests. Try again in {retry_after} seconds.",
+                headers={"Retry-After": str(retry_after)},
+            )
+
+        if not chat_request.messages:
             raise HTTPException(status_code=400, detail="No messages provided.")
 
-        last_msg = request.messages[-1]
+        last_msg = chat_request.messages[-1]
         user_query = extract_text(last_msg) or "Hello"
-        chat_history = convert_messages(request.messages[:-1])
+        chat_history = convert_messages(chat_request.messages[:-1])
 
         async def stream_generator():
             msg_id = str(uuid.uuid4())
             try:
                 yield sse({"type": "text-start", "id": msg_id})
-                async for token in _stream_rag_with_retry(user_query, chat_history, request.namespace):
+                async for token in _stream_rag_with_retry(user_query, chat_history, chat_request.namespace):
                     yield sse({"type": "text-delta", "id": msg_id, "delta": token})
                 yield sse({"type": "text-end", "id": msg_id})
 
@@ -179,7 +200,6 @@ async def chat(request: ChatRequest):
                 "Cache-Control": "no-cache",
                 "Connection": "keep-alive",
                 "x-vercel-ai-ui-message-stream": "v1",
-                "Access-Control-Allow-Origin": "*",
             },
         )
 

@@ -23,6 +23,15 @@ _product_embeddings: Optional[np.ndarray] = None
 _indexed_products: Optional[list] = None
 _pinecone_index = None
 
+def _fallback_catalog() -> list[dict]:
+    return [
+        {"id": "VS001", "name": "Wireless Headphones", "category": "Electronics", "price": 199.99},
+        {"id": "VS002", "name": "Gaming Mouse", "category": "Electronics", "price": 59.99},
+        {"id": "VS003", "name": "Laptop Stand", "category": "Office", "price": 34.99},
+        {"id": "VS004", "name": "Smart Water Bottle", "category": "Home & Kitchen", "price": 44.99},
+        {"id": "VS005", "name": "Wireless Charging Pad", "category": "Electronics", "price": 29.99},
+    ]
+
 
 def _init_pinecone():
     global _pinecone_index
@@ -249,10 +258,12 @@ def _build_product_embeddings():
     if model is None:
         return None, None
 
-    logger.info(f"Pre-computing CLIP text embeddings for {len(PRODUCTS)} products...")
+    catalog = PRODUCTS or _fallback_catalog()
+
+    logger.info(f"Pre-computing CLIP text embeddings for {len(catalog)} products...")
     
     descriptions = []
-    for prod in PRODUCTS:
+    for prod in catalog:
         # Truncate to ~150 chars to avoid exceeding CLIP's 77 token limit
         short_name = prod['name'][:150]
         desc = PRODUCT_VISUAL_DESCRIPTIONS.get(
@@ -271,7 +282,7 @@ def _build_product_embeddings():
         try:
             logger.info("Upserting text-based product embeddings to Pinecone...")
             vectors = []
-            for i, prod in enumerate(PRODUCTS):
+            for i, prod in enumerate(catalog):
                 vectors.append((
                     prod["id"],
                     embeddings[i].tolist(),
@@ -282,7 +293,7 @@ def _build_product_embeddings():
         except Exception as e:
             logger.error(f"Failed to upsert to Pinecone: {e}")
 
-    return np.array(embeddings), PRODUCTS
+    return np.array(embeddings), catalog
 
 
 def get_product_embeddings():
@@ -409,7 +420,8 @@ def search_by_description(text_query: str, top_k: int = 5) -> List[Dict]:
                     p["similarity_pct"] = round(float(m.score) * 100, 1)
                     p["rank"]           = rank
                     results.append(p)
-            return results
+            if results:
+                return results
         except Exception as e:
             logger.warning(f"Pinecone text query failed, falling back to local numpy: {e}")
 
@@ -427,4 +439,15 @@ def search_by_description(text_query: str, top_k: int = 5) -> List[Dict]:
         prod["rank"]           = rank
         results.append(prod)
 
-    return results
+    if results:
+        return results
+
+    fallback_results = []
+    for rank, prod in enumerate(products[:top_k], 1):
+        item = dict(prod)
+        item["similarity"] = 0.0
+        item["similarity_pct"] = 0.0
+        item["rank"] = rank
+        fallback_results.append(item)
+
+    return fallback_results

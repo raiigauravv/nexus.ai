@@ -12,8 +12,9 @@ import {
   Tag,
   Flame,
 } from "lucide-react";
+import { API_BASE } from "@/lib/api";
 
-const BACKEND = "http://localhost:8000/api/v1";
+const BACKEND = API_BASE;
 
 interface Product {
   id: string;
@@ -114,6 +115,12 @@ function ScorePill({ score }: { score: number }) {
   );
 }
 
+function normalizeTags(tags: string[] | string | undefined): string[] {
+  if (!tags) return [];
+  if (Array.isArray(tags)) return tags;
+  return tags.split(",").map((tag) => tag.trim()).filter(Boolean);
+}
+
 function ProductCard({ product, showScore = true, showReason = true }: {
   product: Product;
   showScore?: boolean;
@@ -170,7 +177,7 @@ function ProductCard({ product, showScore = true, showReason = true }: {
 
       {/* Tags */}
       <div className="flex flex-wrap gap-1 mt-3">
-        {(product.tags || []).slice(0, 3).map((tag: any) => (
+        {normalizeTags(product.tags).slice(0, 3).map((tag) => (
           <span key={tag} className="text-xs bg-gray-100 text-gray-500 rounded px-1.5 py-0.5">
             #{tag}
           </span>

@@ -2,6 +2,7 @@
 
 import { Send, Bot, User, Sparkles, AlertTriangle, RefreshCw } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { apiUrl } from "@/lib/api";
 
 interface Message {
   id: string;
@@ -10,7 +11,7 @@ interface Message {
   isError?: boolean;
 }
 
-const BACKEND_URL = "http://localhost:8000/api/v1/chat";
+const BACKEND_URL = apiUrl("/chat");
 
 export default function ChatUI() {
   const [messages, setMessages] = useState<Message[]>([]);

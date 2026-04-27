@@ -1,8 +1,9 @@
-.PHONY: up down build test test-v logs clean shell
+.PHONY: up down build migrate test test-v logs clean shell
 
 # Docker management
 up:
 	docker-compose up -d
+	docker-compose exec backend alembic -c alembic.ini upgrade head
 
 down:
 	docker-compose down
@@ -10,15 +11,18 @@ down:
 build:
 	docker-compose build
 
+migrate:
+	cd backend && export ALEMBIC_DATABASE_URL=sqlite:///./nexus_fallback.db && venv/bin/alembic -c alembic.ini upgrade head
+
 logs:
 	docker-compose logs -f backend
 
 # Testing
 test:
-	cd backend && export MLFLOW_TRACKING_URI=sqlite:///mlruns.db && PYTHONPATH=. venv/bin/pytest tests/test_api_endpoints.py
+	cd backend && export ALEMBIC_DATABASE_URL=sqlite:///./nexus_fallback.db && venv/bin/alembic -c alembic.ini upgrade head && export MLFLOW_TRACKING_URI=sqlite:///mlruns.db && PYTHONPATH=. venv/bin/pytest tests/test_api_endpoints.py
 
 test-v:
-	cd backend && export MLFLOW_TRACKING_URI=sqlite:///mlruns.db && PYTHONPATH=. venv/bin/pytest tests/test_api_endpoints.py -v
+	cd backend && export ALEMBIC_DATABASE_URL=sqlite:///./nexus_fallback.db && venv/bin/alembic -c alembic.ini upgrade head && export MLFLOW_TRACKING_URI=sqlite:///mlruns.db && PYTHONPATH=. venv/bin/pytest tests/test_api_endpoints.py -v
 
 # Utility
 clean:

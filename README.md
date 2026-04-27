@@ -12,13 +12,14 @@ By combining real-world datasets with event streaming (Kafka), experiment tracki
 
 - **Hybrid Recommendation Engine**: SVD Collaborative Filtering + CLIP Content-Based embeddings, trained on **MovieLens 1M** (1M real ratings). Real-time ALS single-user embedding updates via Kafka — no full retrain needed.
 - **Enterprise Fraud Detection**: Isolation Forest (anomaly score as feature) + Gradient Boosting, trained on the **Kaggle Credit Card Fraud dataset** (284,807 real transactions, SMOTE balanced). F1 > 0.85 on 20% holdout.
-- **Thematic Sentiment Analysis**: DistilBERT fine-tuned on **SST-2** + VADER ensemble. Aspect-level and emotion-level breakdown.
+- **Thematic Sentiment Analysis**: RoBERTa (`cardiffnlp/twitter-roberta-base-sentiment-latest`) with DistilBERT and VADER fallback/ensemble support. Aspect-level and emotion-level breakdown.
 - **AI Agent Orchestration**: LangChain-powered agent with session memory that coordinates fraud, sentiment, visual search, and recommendations via SSE streaming.
 - **Live Kafka Event Streaming**: Purchase events fire to `nexus.purchase_events` → background consumer performs a closed-form ALS embedding update → next recommendation reflects the purchase **in real time**.
 - **MLflow Experiment Tracking**: Every training run logs params, metrics, confusion matrices, ROC curves, and registers models in the MLflow Model Registry.
 - **DVC Data Versioning**: Datasets and model artifacts version-controlled with DVC, backed by MinIO (already in docker-compose).
 - **Production Infrastructure**: 7-service Docker Compose — PostgreSQL, Redis, MinIO, Kafka+Zookeeper, MLflow, FastAPI, Next.js.
 - **Secure JWT Auth**: Stateless token-based authentication with bcrypt password hashing.
+- **Abuse Protection**: Per-IP rate limiting on auth and chat endpoints with `429` + `Retry-After` responses.
 
 ---
 
@@ -77,14 +78,21 @@ graph TD
 ### 1. Environment Setup
 
 ```bash
+cp .env.example .env
+
 cp backend/.env.example backend/.env
-# Fill in GEMINI_API_KEY and PINECONE_API_KEY in backend/.env
+# Fill in GEMINI_API_KEY, PINECONE_API_KEY, JWT_SECRET_KEY, and POSTGRES_PASSWORD in backend/.env
+
+cp frontend/.env.example frontend/.env.local
 ```
 
 ### 2. Launch Infrastructure
 
 ```bash
 docker compose up -d
+
+# Apply DB migrations (also auto-runs on backend startup)
+docker compose exec backend alembic -c alembic.ini upgrade head
 ```
 
 ### 3. Train Models (optional — inference works with built-in models)
@@ -120,12 +128,37 @@ docker compose exec backend python app/init_db.py
 ## 🧪 Running Tests
 
 ```bash
+# Ensure schema is applied first
+docker compose exec backend alembic -c alembic.ini upgrade head
+
 # Run all tests via Docker
 docker compose exec backend pytest tests/ -v
 
 # Run locally (requires venv with backend/requirements.txt)
+cd backend && ALEMBIC_DATABASE_URL=sqlite:///./nexus_fallback.db alembic -c alembic.ini upgrade head
 cd backend && MLFLOW_TRACKING_URI=sqlite:///mlruns.db PYTHONPATH=. pytest tests/ -v
 ```
+
+## 🔐 Quality Gates (CI)
+
+CI runs on every push and pull request with:
+
+- Backend tests (`pytest`)
+- Frontend lint (`next lint`)
+- Security static analysis (`bandit`)
+- Python dependency vulnerability scan (`pip-audit`)
+- Secret scanning (`gitleaks`)
+
+## ☁️ Deployment Options
+
+The current `docker-compose.yml` is a full local/demo stack and is too large for AWS free tier as-is.
+For a realistic low-cost deployment plan, see [docs/deployment.md](docs/deployment.md).
+
+In short:
+
+- Full stack: best for local development, demos, or paid infrastructure.
+- AWS free tier: only feasible for a trimmed deployment with externalized services and reduced ML infrastructure.
+- Next.js frontend: easiest to host separately on Vercel or AWS Amplify.
 
 ---
 

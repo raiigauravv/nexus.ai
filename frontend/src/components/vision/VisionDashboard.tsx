@@ -14,8 +14,9 @@ import {
   BarChart2,
   Info,
 } from "lucide-react";
+import { API_BASE } from "@/lib/api";
 
-const BACKEND = "http://localhost:8000/api/v1";
+const BACKEND = API_BASE;
 
 interface ColorSwatch {
   hex: string;

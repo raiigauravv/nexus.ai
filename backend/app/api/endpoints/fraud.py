@@ -176,7 +176,6 @@ async def stream_transactions(interval_ms: int = 1500):
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "Access-Control-Allow-Origin": "*",
         },
     )
 
@@ -191,6 +190,11 @@ async def get_stats():
         "recall": 0.0,
         "auc_roc": 0.0
     })
+    if "f1" not in metrics:
+        precision = float(metrics.get("precision", 0.0))
+        recall = float(metrics.get("recall", 0.0))
+        metrics = dict(metrics)
+        metrics["f1"] = round((2 * precision * recall / (precision + recall)) if (precision + recall) else 0.0, 4)
     
     return {
         "total_analyzed": random.randint(12400, 12600),

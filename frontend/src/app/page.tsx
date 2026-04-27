@@ -89,7 +89,7 @@ const MODULE_BANNERS: Record<string, { title: string; subtitle: string; gradient
   },
   sentiment: {
     title: "Sentiment Analysis Pipeline",
-    subtitle: "Multi-layer NLP engine: VADER lexicon (65%) + TextBlob pattern analysis (35%). Detects overall sentiment, emotion distribution, aspect-level opinions, and subjectivity scoring.",
+    subtitle: "Multi-layer NLP engine with RoBERTa primary inference plus DistilBERT and VADER fallback/ensemble support. Detects overall sentiment, emotion distribution, aspect-level opinions, and subjectivity scoring.",
     gradient: "linear-gradient(135deg, rgba(6,182,212,0.5) 0%, rgba(8,145,178,0.3) 100%)",
     icon: <BarChart2 className="w-7 h-7" />,
   },

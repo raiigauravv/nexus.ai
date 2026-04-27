@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { apiUrl } from "@/lib/api";
 
 export interface UserProfile {
   id: string;
@@ -42,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUserProfile = async (authToken: string) => {
     try {
-      const res = await fetch("http://localhost:8000/api/v1/auth/me", {
+      const res = await fetch(apiUrl("/auth/me"), {
         headers: {
           Authorization: `Bearer ${authToken}`,
         },

@@ -12,14 +12,15 @@ from app.kafka.producer import stop_producer
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     # ── Startup ────────────────────────────────────────────────────────────────
     logger.info("Initializing persistent database on startup...")
     db = SessionLocal()
     try:
         init_db(db)
     except Exception as e:
-        logger.error(f"Database initialization failed: {e}")
+        logger.error("Database initialization failed: %s", e)
+        raise
     finally:
         db.close()
 
@@ -27,7 +28,7 @@ async def lifespan(app: FastAPI):
     try:
         await start_consumer()
     except Exception as e:
-        logger.warning(f"Kafka consumer failed to start (non-fatal): {e}")
+        logger.warning("Kafka consumer failed to start (non-fatal): %s", e)
 
     # Pre-warm sentiment model
     try:
@@ -37,7 +38,7 @@ async def lifespan(app: FastAPI):
         await asyncio.to_thread(analyze, "warmup")
         logger.info("Sentiment model pre-warmed successfully.")
     except Exception as e:
-        logger.warning(f"Could not pre-warm sentiment model: {e}")
+        logger.warning("Could not pre-warm sentiment model: %s", e)
 
     yield
 

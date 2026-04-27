@@ -15,8 +15,9 @@ import {
   Activity,
   Eye,
 } from "lucide-react";
+import { API_BASE } from "@/lib/api";
 
-const BACKEND = "http://localhost:8000/api/v1";
+const BACKEND = API_BASE;
 
 interface SentimentOverall {
   label: "positive" | "neutral" | "negative";

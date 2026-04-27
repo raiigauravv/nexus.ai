@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, Mail, Lock, User, LogIn, UserPlus } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { apiUrl } from "@/lib/api";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -40,7 +41,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         formDataObj.append("username", formData.id);
         formDataObj.append("password", formData.password);
 
-        const res = await fetch("http://localhost:8000/api/v1/auth/login", {
+        const res = await fetch(apiUrl("/auth/login"), {
           method: "POST",
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
@@ -57,7 +58,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         await login(data.access_token);
         onClose();
       } else {
-        const res = await fetch("http://localhost:8000/api/v1/auth/register", {
+        const res = await fetch(apiUrl("/auth/register"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
