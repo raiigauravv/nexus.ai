@@ -11,13 +11,13 @@ By combining real-world datasets with event streaming (Kafka), experiment tracki
 ## 🚀 Key Features
 
 - **Hybrid Recommendation Engine**: SVD Collaborative Filtering + CLIP Content-Based embeddings, trained on **MovieLens 1M** (1M real ratings). Real-time ALS single-user embedding updates via Kafka — no full retrain needed.
-- **Enterprise Fraud Detection**: Isolation Forest (anomaly score as feature) + Gradient Boosting, trained on the **Kaggle Credit Card Fraud dataset** (284,807 real transactions, SMOTE balanced). F1 > 0.85 on 20% holdout.
+- **Enterprise Fraud Detection**: Isolation Forest (anomaly score as feature) + HistGradientBoosting, trained on the **Kaggle Credit Card Fraud dataset** (284,807 real transactions, SMOTE balanced). F1 0.81, AUC-ROC 0.98 on 20% holdout.
 - **Thematic Sentiment Analysis**: RoBERTa (`cardiffnlp/twitter-roberta-base-sentiment-latest`) with DistilBERT and VADER fallback/ensemble support. Aspect-level and emotion-level breakdown.
 - **AI Agent Orchestration**: LangChain-powered agent with session memory that coordinates fraud, sentiment, visual search, and recommendations via SSE streaming.
 - **Live Kafka Event Streaming**: Purchase events fire to `nexus.purchase_events` → background consumer performs a closed-form ALS embedding update → next recommendation reflects the purchase **in real time**.
 - **MLflow Experiment Tracking**: Every training run logs params, metrics, confusion matrices, ROC curves, and registers models in the MLflow Model Registry.
 - **DVC Data Versioning**: Datasets and model artifacts version-controlled with DVC, backed by MinIO (already in docker-compose).
-- **Production Infrastructure**: 7-service Docker Compose — PostgreSQL, Redis, MinIO, Kafka+Zookeeper, MLflow, FastAPI, Next.js.
+- **Production Infrastructure**: 9-service Docker Compose — PostgreSQL, Redis, MinIO, MinIO-init, Zookeeper, Kafka, MLflow, FastAPI, Next.js.
 - **Secure JWT Auth**: Stateless token-based authentication with bcrypt password hashing.
 - **Abuse Protection**: Per-IP rate limiting on auth and chat endpoints with `429` + `Retry-After` responses.
 
@@ -34,11 +34,11 @@ By combining real-world datasets with event streaming (Kafka), experiment tracki
 
 | Metric | Result | Dataset | Detail |
 | :--- | :--- | :--- | :--- |
-| **Fraud F1** | **> 0.85** | Kaggle CC Fraud (284K rows) | GBT + IF Ensemble, SMOTE, 20% holdout |
-| **Fraud AUC-ROC** | **> 0.97** | Kaggle CC Fraud | Average precision > 0.80 |
+| **Fraud F1** | **0.81** | Kaggle CC Fraud (284K rows) | HistGBT + IF Ensemble, SMOTE, 20% holdout |
+| **Fraud AUC-ROC** | **0.98** | Kaggle CC Fraud | Average precision 0.86 |
 | **Rec NDCG@10** | **SVD rank sweep** | MovieLens 1M | Temporal 80/20 split, best of rank 20/50/100 |
 | **Rec Coverage** | **> 30%** | MovieLens 1M | Catalog coverage @ top-10 |
-| **Sentiment Acc** | **~91%** | SST-2 (GLUE) | DistilBERT fine-tuned, 3 epochs |
+| **Sentiment Acc** | **~91%** | Synthetic eval set | RoBERTa (cardiffnlp) + VADER ensemble |
 
 > Run `python -m training.evaluate_all` to reproduce all metrics from your local artifacts.
 
@@ -222,7 +222,7 @@ nexus.ai/
 ├── notebooks/             # EDA + evaluation notebooks
 ├── tests/                 # pytest unit + integration tests
 ├── .dvc/                  # DVC config (MinIO remote)
-└── docker-compose.yml     # Full 7-service stack
+└── docker-compose.yml     # Full 9-service stack
 ```
 
 ---
