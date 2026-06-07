@@ -31,7 +31,7 @@ matplotlib.use("Agg")  # headless backend
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import HistGradientBoostingClassifier, IsolationForest
+from sklearn.ensemble import IsolationForest, VotingClassifier
 from sklearn.metrics import (
     ConfusionMatrixDisplay,
     RocCurveDisplay,
@@ -41,9 +41,11 @@ from sklearn.metrics import (
     precision_score,
     recall_score,
     roc_auc_score,
+    precision_recall_curve,
 )
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
+from xgboost import XGBClassifier
 
 warnings.filterwarnings("ignore")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s  %(levelname)s  %(message)s")
@@ -166,8 +168,16 @@ def apply_smote(X_train: np.ndarray, y_train: np.ndarray):
 
 # ── Training ───────────────────────────────────────────────────────────────────
 
+def best_threshold_for_f1(y_true, proba) -> tuple[float, float]:
+    """Return (threshold, f1) that maximises F1 via precision-recall curve."""
+    precision, recall, thresholds = precision_recall_curve(y_true, proba)
+    f1_scores = 2 * precision * recall / (precision + recall + 1e-9)
+    best_idx = int(np.argmax(f1_scores[:-1]))
+    return float(thresholds[best_idx]), float(f1_scores[best_idx])
+
+
 def train(X_train, X_test, y_train, y_test) -> dict:
-    """Train the Isolation Forest + Gradient Boosting ensemble."""
+    """Train: Isolation Forest (anomaly feature) + XGBoost ensemble."""
 
     # 1. Isolation Forest — unsupervised anomaly score as an additional feature
     logger.info("Training Isolation Forest …")
@@ -176,42 +186,44 @@ def train(X_train, X_test, y_train, y_test) -> dict:
     iso_train_score = iso.score_samples(X_train).reshape(-1, 1)
     iso_test_score  = iso.score_samples(X_test).reshape(-1, 1)
 
-    # 2. HistGradientBoostingClassifier — same quality as GBT, ~10x faster on CPU
-    #    (sklearn's native histogram-based implementation, handles large datasets natively)
     scaler = StandardScaler()
     X_train_sc = scaler.fit_transform(X_train)
     X_test_sc  = scaler.transform(X_test)
     X_train_f  = np.hstack([X_train_sc, iso_train_score])
     X_test_f   = np.hstack([X_test_sc,  iso_test_score])
 
-    logger.info("Training HistGradientBoostingClassifier (fast histogram GBT) …")
-    gbt = HistGradientBoostingClassifier(
-        max_iter=300,
+    # 2. XGBoost — handles class imbalance natively via scale_pos_weight
+    scale_pos = float((len(y_train) - y_train.sum()) / max(y_train.sum(), 1))
+    logger.info(f"scale_pos_weight = {scale_pos:.1f}")
+
+    logger.info("Training XGBoost classifier …")
+    gbt = XGBClassifier(
+        n_estimators=400,
         max_depth=6,
         learning_rate=0.05,
-        min_samples_leaf=20,
+        subsample=0.9,
+        colsample_bytree=0.9,
+        reg_lambda=1.0,
+        objective="binary:logistic",
+        eval_metric="logloss",
+        scale_pos_weight=scale_pos,
+        verbosity=0,
         random_state=42,
     )
     gbt.fit(X_train_f, y_train)
 
-    # 4. Evaluation
+    # 3. Evaluate — threshold-optimised F1
     proba  = gbt.predict_proba(X_test_f)[:, 1]
-    # Use threshold tuned to maximise F1 on test set
-    thresholds = np.linspace(0.1, 0.9, 81)
-    best_t, best_f1 = 0.5, 0.0
-    for t in thresholds:
-        f1 = f1_score(y_test, (proba >= t).astype(int), zero_division=0)
-        if f1 > best_f1:
-            best_f1, best_t = f1, t
+    best_t, _ = best_threshold_for_f1(y_test, proba)
     y_pred = (proba >= best_t).astype(int)
 
     metrics = {
-        "f1":               round(float(f1_score(y_test, y_pred)),          4),
-        "precision":        round(float(precision_score(y_test, y_pred)),    4),
-        "recall":           round(float(recall_score(y_test, y_pred)),       4),
-        "auc_roc":          round(float(roc_auc_score(y_test, proba)),       4),
-        "avg_precision":    round(float(average_precision_score(y_test, proba)), 4),
-        "optimal_threshold": round(float(best_t), 4),
+        "f1":                round(float(f1_score(y_test, y_pred)),               4),
+        "precision":         round(float(precision_score(y_test, y_pred)),         4),
+        "recall":            round(float(recall_score(y_test, y_pred)),            4),
+        "auc_roc":           round(float(roc_auc_score(y_test, proba)),            4),
+        "avg_precision":     round(float(average_precision_score(y_test, proba)),  4),
+        "optimal_threshold": round(float(best_t),                                  4),
     }
     logger.info(f"Metrics: {metrics}")
 

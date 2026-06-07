@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.ml.sentiment import analyze, SAMPLE_REVIEWS
 from app.ml.topics import get_product_complaint_themes, should_stop_recommending
+from app.monitoring.drift import record_prediction
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -30,6 +31,10 @@ def analyze_text(req: TextRequest):
     """Analyze sentiment of a single text with aspect breakdown."""
     try:
         result = analyze(req.text)
+        # Record confidence scores for drift monitoring
+        score = result.get("overall", {}).get("confidence", 0.5)
+        label = result.get("overall", {}).get("label", "neutral")
+        record_prediction("sentiment_pos" if label == "positive" else "sentiment_neg", score)
         return result
     except Exception as e:
         logger.error(f"Sentiment analysis error: {e}")

@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
-from app.api.endpoints import chat, ingest, fraud, recommend, sentiment, vision, agent, auth
+from app.api.endpoints import chat, ingest, fraud, recommend, sentiment, vision, agent, auth, monitor
 from app.database import SessionLocal
 from app.init_db import init_db
 from app.kafka.consumer import start_consumer, stop_consumer
@@ -89,3 +89,4 @@ app.include_router(sentiment.router, prefix=settings.API_V1_STR, tags=["sentimen
 app.include_router(vision.router, prefix=settings.API_V1_STR, tags=["vision"])
 app.include_router(agent.router, prefix=settings.API_V1_STR, tags=["agent"])
 app.include_router(auth.router, prefix=settings.API_V1_STR, tags=["auth"])
+app.include_router(monitor.router, tags=["monitoring"])

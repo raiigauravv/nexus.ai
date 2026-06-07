@@ -18,6 +18,7 @@ from pydantic import BaseModel
 
 from app.ml.fraud_model import predict_fraud, MERCHANT_CATEGORIES, get_model
 from app.kafka.producer import publish_fraud_alert
+from app.monitoring.drift import record_prediction
 
 logger = logging.getLogger(__name__)
 
@@ -117,6 +118,9 @@ async def analyze_transaction(tx: Transaction):
         tx_dict["timestamp"] = datetime.datetime.now().isoformat()
 
     result = predict_fraud(tx_dict)
+
+    # Record score for drift monitoring
+    record_prediction("fraud", result.get("fraud_score", 0.0))
 
     # Fire Kafka alert for high-confidence fraud
     if result.get("fraud_score", 0) > 0.70:

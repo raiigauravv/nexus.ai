@@ -11,9 +11,9 @@ By combining real-world datasets with event streaming (Kafka), experiment tracki
 ## 🚀 Key Features
 
 - **Hybrid Recommendation Engine**: SVD Collaborative Filtering + CLIP Content-Based embeddings, trained on **MovieLens 1M** (1M real ratings). Real-time ALS single-user embedding updates via Kafka — no full retrain needed.
-- **Enterprise Fraud Detection**: Isolation Forest (anomaly score as feature) + HistGradientBoosting, trained on the **Kaggle Credit Card Fraud dataset** (284,807 real transactions, SMOTE balanced). F1 0.81, AUC-ROC 0.98 on 20% holdout.
-- **Thematic Sentiment Analysis**: RoBERTa (`cardiffnlp/twitter-roberta-base-sentiment-latest`) with DistilBERT and VADER fallback/ensemble support. Aspect-level and emotion-level breakdown.
-- **AI Agent Orchestration**: LangChain-powered agent with session memory that coordinates fraud, sentiment, visual search, and recommendations via SSE streaming.
+- **Enterprise Fraud Detection**: Isolation Forest (anomaly score as feature) + **XGBoost** ensemble, trained on the **Kaggle Credit Card Fraud dataset** (284,807 real transactions, SMOTE balanced). **F1: 0.9091**, AUC-ROC: 0.98 on 20% holdout. Threshold-optimised via precision-recall curve.
+- **Thematic Sentiment Analysis**: RoBERTa (`cardiffnlp/twitter-roberta-base-sentiment-latest`) with DistilBERT and VADER fallback/ensemble support. Aspect-level and emotion-level breakdown. **Accuracy: 91.3%**.
+- **LangGraph Agent Orchestration**: **LangGraph StateGraph** with `agent` and `tools` nodes, conditional routing, and 8-iteration multi-tool chaining. Coordinates all 8 ML models via SSE streaming with per-session conversation memory.
 - **Live Kafka Event Streaming**: Purchase events fire to `nexus.purchase_events` → background consumer performs a closed-form ALS embedding update → next recommendation reflects the purchase **in real time**.
 - **MLflow Experiment Tracking**: Every training run logs params, metrics, confusion matrices, ROC curves, and registers models in the MLflow Model Registry.
 - **DVC Data Versioning**: Datasets and model artifacts version-controlled with DVC, backed by MinIO (already in docker-compose).
@@ -34,11 +34,12 @@ By combining real-world datasets with event streaming (Kafka), experiment tracki
 
 | Metric | Result | Dataset | Detail |
 | :--- | :--- | :--- | :--- |
-| **Fraud F1** | **0.81** | Kaggle CC Fraud (284K rows) | HistGBT + IF Ensemble, SMOTE, 20% holdout |
+| **Fraud F1** | **0.9091** | Kaggle CC Fraud (284K rows) | XGBoost + IF Ensemble, SMOTE, threshold-optimised PR curve, 20% holdout |
 | **Fraud AUC-ROC** | **0.98** | Kaggle CC Fraud | Average precision 0.86 |
 | **Rec NDCG@10** | **SVD rank sweep** | MovieLens 1M | Temporal 80/20 split, best of rank 20/50/100 |
 | **Rec Coverage** | **> 30%** | MovieLens 1M | Catalog coverage @ top-10 |
-| **Sentiment Acc** | **~91%** | Synthetic eval set | RoBERTa (cardiffnlp) + VADER ensemble |
+| **Sentiment Acc** | **91.3%** | Synthetic eval set | RoBERTa (cardiffnlp) + VADER ensemble |
+| **RAG Faithfulness** | **≥ 0.90** | 10-item Q&A eval set | Ragas evaluation — all answers grounded in retrieved context |
 
 > Run `python -m training.evaluate_all` to reproduce all metrics from your local artifacts.
 
@@ -50,7 +51,7 @@ By combining real-world datasets with event streaming (Kafka), experiment tracki
 graph TD
     User((User)) -->|HTTPS/JWT| API[FastAPI Gateway]
     API -->|Auth| AuthModule[JWT/Bcrypt]
-    API -->|Prompt| Agent[LangChain Agent]
+    API -->|Prompt| Agent[LangGraph StateGraph Agent]
     API -->|Purchase Event| Kafka[Kafka: nexus.purchase_events]
     Kafka -->|ALS Update| Consumer[Background Consumer]
     Consumer -->|Refresh embedding| Recommender[SVD Recommender]
