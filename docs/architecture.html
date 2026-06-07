@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1400px;
+    background: #050c1a;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    padding: 28px 28px 32px;
+    background-image: radial-gradient(ellipse at 50% 0%, #0a1a3a 0%, #050c1a 70%);
+  }
+
+  /* TITLE */
+  .title-block { text-align: center; margin-bottom: 22px; }
+  .title-block h1 {
+    font-size: 28px; font-weight: 800; letter-spacing: 2px;
+    color: #e8f0ff;
+    text-shadow: 0 0 30px rgba(100,160,255,0.5);
+  }
+  .title-block p {
+    font-size: 12px; color: #6a8aaa; margin-top: 4px; letter-spacing: 1px;
+  }
+
+  /* SHARED PANEL */
+  .panel {
+    border-radius: 14px;
+    border: 1.5px solid rgba(40,80,180,0.6);
+    background: linear-gradient(160deg, #0c1a3a 0%, #07111f 100%);
+    box-shadow: 0 0 30px rgba(30,80,200,0.15), inset 0 1px 0 rgba(100,150,255,0.08);
+    padding: 16px;
+  }
+  .panel-label {
+    text-align: center; font-size: 12px; font-weight: 700;
+    letter-spacing: 1.5px; color: #6aabff; margin-bottom: 14px;
+    text-transform: uppercase;
+  }
+
+  /* INTELLIGENCE LAYER */
+  .intel-layer { margin-bottom: 0; }
+  .intel-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
+  }
+
+  /* MODEL CARD */
+  .model-card {
+    border-radius: 12px;
+    padding: 14px 14px 12px;
+    background: linear-gradient(160deg, #0d1e45 0%, #07111f 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  .model-card::before {
+    content: '';
+    position: absolute; inset: 0;
+    border-radius: 12px;
+    padding: 1.5px;
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+  }
+  .model-card.red   { border: 1.5px solid rgba(239,68,68,0.7);  box-shadow: 0 0 20px rgba(239,68,68,0.12),  inset 0 1px 0 rgba(239,68,68,0.08); }
+  .model-card.purp  { border: 1.5px solid rgba(139,92,246,0.7); box-shadow: 0 0 20px rgba(139,92,246,0.12), inset 0 1px 0 rgba(139,92,246,0.08); }
+  .model-card.gold  { border: 1.5px solid rgba(234,179,8,0.7);  box-shadow: 0 0 20px rgba(234,179,8,0.12),  inset 0 1px 0 rgba(234,179,8,0.08); }
+  .model-card.green { border: 1.5px solid rgba(34,197,94,0.7);  box-shadow: 0 0 20px rgba(34,197,94,0.12),  inset 0 1px 0 rgba(34,197,94,0.08); }
+
+  .card-title { font-size: 13px; font-weight: 700; text-align: center; margin-bottom: 2px; }
+  .red   .card-title { color: #f87171; }
+  .purp  .card-title { color: #c4b5fd; }
+  .gold  .card-title { color: #fde047; }
+  .green .card-title { color: #4ade80; }
+
+  .card-sub  { font-size: 10.5px; color: #8aa4cc; text-align: center; margin-bottom: 10px; }
+  .card-divider { height: 1px; margin: 0 0 10px; opacity: 0.4; }
+  .red   .card-divider { background: #ef4444; }
+  .purp  .card-divider { background: #8b5cf6; }
+  .gold  .card-divider { background: #eab308; }
+  .green .card-divider { background: #22c55e; }
+
+  /* ICON */
+  .card-icon { text-align: center; margin: 6px 0 10px; }
+  .card-icon svg { width: 52px; height: 52px; }
+
+  /* METRICS */
+  .card-metric { text-align: center; font-size: 13px; font-weight: 700; margin: 3px 0; }
+  .red   .card-metric { color: #f87171; }
+  .purp  .card-metric { color: #c4b5fd; }
+  .gold  .card-metric { color: #fde047; }
+  .green .card-metric { color: #4ade80; }
+  .card-detail { font-size: 10px; color: #607090; text-align: center; line-height: 1.6; }
+
+  /* AGENT */
+  .agent-row { display: flex; justify-content: center; margin: 14px 0; }
+  .agent-box {
+    width: 440px;
+    border-radius: 16px;
+    border: 2px solid rgba(80,140,255,0.8);
+    background: linear-gradient(160deg, #0f2050 0%, #081428 100%);
+    box-shadow: 0 0 40px rgba(60,120,255,0.25), 0 0 80px rgba(40,80,200,0.1);
+    padding: 14px 18px 12px;
+    text-align: center;
+    position: relative;
+  }
+  .agent-arrows {
+    display: flex; justify-content: space-around;
+    padding: 0 20px; margin-bottom: 0;
+  }
+  .arrow-down {
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .arrow-line { width: 2px; height: 18px; background: rgba(60,120,255,0.6); }
+  .arrow-head {
+    width: 0; height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 7px solid rgba(60,120,255,0.8);
+  }
+  .arrow-down-single {
+    display: flex; flex-direction: column; align-items: center;
+    margin: 0 auto; width: fit-content;
+  }
+
+  .agent-title { font-size: 15px; font-weight: 800; color: #e8f0ff; letter-spacing: 1px; }
+  .agent-sub   { font-size: 12px; font-weight: 600; color: #6aabff; margin: 2px 0 10px; }
+
+  .orb {
+    width: 44px; height: 44px; border-radius: 50%; margin: 0 auto 10px;
+    background: radial-gradient(circle at 40% 35%, #4080ff, #1040a0 60%, #061030);
+    box-shadow: 0 0 20px rgba(80,140,255,0.6), 0 0 40px rgba(50,100,220,0.3);
+  }
+
+  .lg-badge {
+    display: inline-block;
+    border: 1px solid rgba(80,140,255,0.7);
+    border-radius: 8px;
+    padding: 4px 14px;
+    background: rgba(20,50,120,0.6);
+    font-size: 12px; font-weight: 700; color: #90c0ff;
+    margin-bottom: 8px;
+  }
+  .agent-desc { font-size: 10.5px; color: #506070; }
+
+  /* BOTTOM ROW */
+  .bottom-row {
+    display: grid;
+    grid-template-columns: 1fr 0.72fr;
+    gap: 14px;
+    margin-top: 0;
+  }
+
+  /* SERVICE GRID */
+  .service-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-top: 12px;
+  }
+  .obs-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .svc-card {
+    border-radius: 10px;
+    padding: 10px 8px 8px;
+    text-align: center;
+    background: linear-gradient(160deg, #0d1e3a 0%, #07111f 100%);
+  }
+  .svc-card.teal  { border: 1.5px solid rgba(20,184,166,0.6);  box-shadow: 0 0 12px rgba(20,184,166,0.1); }
+  .svc-card.blue  { border: 1.5px solid rgba(96,165,250,0.6);  box-shadow: 0 0 12px rgba(96,165,250,0.1); }
+  .svc-card.red   { border: 1.5px solid rgba(239,68,68,0.6);   box-shadow: 0 0 12px rgba(239,68,68,0.1); }
+  .svc-card.orange{ border: 1.5px solid rgba(251,146,60,0.6);  box-shadow: 0 0 12px rgba(251,146,60,0.1); }
+  .svc-card.gold  { border: 1.5px solid rgba(234,179,8,0.6);   box-shadow: 0 0 12px rgba(234,179,8,0.1); }
+  .svc-card.purp  { border: 1.5px solid rgba(139,92,246,0.6);  box-shadow: 0 0 12px rgba(139,92,246,0.1); }
+  .svc-card.teal2 { border: 1.5px solid rgba(45,212,191,0.6);  box-shadow: 0 0 12px rgba(45,212,191,0.1); }
+  .svc-card.green { border: 1.5px solid rgba(34,197,94,0.6);   box-shadow: 0 0 12px rgba(34,197,94,0.1); }
+
+  .svc-name { font-size: 11px; font-weight: 700; margin-bottom: 6px; }
+  .svc-card.teal  .svc-name { color: #2dd4bf; }
+  .svc-card.blue  .svc-name { color: #93c5fd; }
+  .svc-card.red   .svc-name { color: #fca5a5; }
+  .svc-card.orange .svc-name{ color: #fdba74; }
+  .svc-card.gold  .svc-name { color: #fde047; }
+  .svc-card.purp  .svc-name { color: #c4b5fd; }
+  .svc-card.teal2 .svc-name { color: #5eead4; }
+  .svc-card.green .svc-name { color: #4ade80; }
+
+  .svc-icon { margin: 4px 0 6px; }
+  .svc-icon svg { width: 28px; height: 28px; }
+  .svc-divider { height: 1px; background: currentColor; opacity: 0.25; margin: 6px 0; }
+  .svc-sub { font-size: 9.5px; color: #4a6070; line-height: 1.5; }
+
+  /* LEGEND */
+  .legend {
+    display: flex; gap: 20px; justify-content: flex-end;
+    margin-top: 10px; padding-right: 4px;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #6a8aaa; }
+  .legend-line { width: 24px; height: 2px; border-radius: 1px; }
+</style>
+</head>
+<body>
+
+<!-- TITLE -->
+<div class="title-block">
+  <h1>NEXUS-AI SYSTEM ARCHITECTURE</h1>
+  <p>A Premium High-Fidelity AI Orchestration Platform</p>
+</div>
+
+<!-- INTELLIGENCE LAYER -->
+<div class="panel intel-layer">
+  <div class="panel-label">NEXUS-AI: Intelligence Layer</div>
+  <div class="intel-grid">
+
+    <!-- Fraud -->
+    <div class="model-card red">
+      <div class="card-title">Fraud Detection</div>
+      <div class="card-sub">XGBoost + Isolation Forest</div>
+      <div class="card-divider"></div>
+      <div class="card-icon">
+        <svg viewBox="0 0 52 52" fill="none">
+          <polygon points="26,4 48,16 48,36 26,48 4,36 4,16" stroke="#ef4444" stroke-width="2" fill="rgba(239,68,68,0.08)"/>
+          <polygon points="26,12 40,20 40,32 26,40 12,32 12,20" stroke="#ef4444" stroke-width="1.5" fill="rgba(239,68,68,0.12)"/>
+          <circle cx="26" cy="26" r="5" fill="#ef4444" opacity="0.9"/>
+        </svg>
+      </div>
+      <div class="card-divider"></div>
+      <div class="card-detail">SMOTE balanced · 284K transactions</div>
+      <div class="card-metric">F1: 0.9091</div>
+      <div class="card-detail">AUC-ROC: 0.98 · Kaggle CC Fraud</div>
+    </div>
+
+    <!-- Recommender -->
+    <div class="model-card purp">
+      <div class="card-title">Hybrid Recommender</div>
+      <div class="card-sub">SVD + CLIP Content-Based</div>
+      <div class="card-divider"></div>
+      <div class="card-icon">
+        <svg viewBox="0 0 52 52" fill="none">
+          <rect x="6" y="6" width="16" height="16" rx="3" stroke="#8b5cf6" stroke-width="2" fill="rgba(139,92,246,0.1)"/>
+          <rect x="30" y="6" width="16" height="16" rx="3" stroke="#8b5cf6" stroke-width="2" fill="rgba(139,92,246,0.1)"/>
+          <rect x="6" y="30" width="16" height="16" rx="3" stroke="#8b5cf6" stroke-width="2" fill="rgba(139,92,246,0.1)"/>
+          <rect x="30" y="30" width="16" height="16" rx="3" stroke="#8b5cf6" stroke-width="2" fill="rgba(139,92,246,0.15)"/>
+          <circle cx="38" cy="38" r="5" fill="#8b5cf6" opacity="0.9"/>
+          <line x1="22" y1="14" x2="30" y2="14" stroke="#8b5cf6" stroke-width="1.5"/>
+          <line x1="14" y1="22" x2="14" y2="30" stroke="#8b5cf6" stroke-width="1.5"/>
+          <line x1="38" y1="22" x2="38" y2="30" stroke="#8b5cf6" stroke-width="1.5"/>
+        </svg>
+      </div>
+      <div class="card-divider"></div>
+      <div class="card-detail">MovieLens 1M · 1M ratings</div>
+      <div class="card-metric">SVD rank-50 · NDCG@10</div>
+      <div class="card-detail">Real-time ALS Kafka update</div>
+    </div>
+
+    <!-- Sentiment -->
+    <div class="model-card gold">
+      <div class="card-title">Thematic Sentiment</div>
+      <div class="card-sub">RoBERTa + DistilBERT + VADER</div>
+      <div class="card-divider"></div>
+      <div class="card-icon">
+        <svg viewBox="0 0 52 52" fill="none">
+          <circle cx="26" cy="26" r="20" stroke="#eab308" stroke-width="2" fill="rgba(234,179,8,0.06)"/>
+          <circle cx="26" cy="26" r="12" stroke="#eab308" stroke-width="1.5" fill="rgba(234,179,8,0.1)"/>
+          <circle cx="26" cy="26" r="5" fill="#eab308" opacity="0.9"/>
+          <line x1="26" y1="2" x2="26" y2="10" stroke="#eab308" stroke-width="2"/>
+          <line x1="26" y1="42" x2="26" y2="50" stroke="#eab308" stroke-width="2"/>
+          <line x1="2" y1="26" x2="10" y2="26" stroke="#eab308" stroke-width="2"/>
+          <line x1="42" y1="26" x2="50" y2="26" stroke="#eab308" stroke-width="2"/>
+        </svg>
+      </div>
+      <div class="card-divider"></div>
+      <div class="card-detail">BERTopic · Aspect & emotion level</div>
+      <div class="card-metric">Accuracy: 91.3%</div>
+      <div class="card-detail">cardiffnlp/roberta-sentiment</div>
+    </div>
+
+    <!-- RAG -->
+    <div class="model-card green">
+      <div class="card-title">RAG Pipeline</div>
+      <div class="card-sub">LangChain + Pinecone</div>
+      <div class="card-divider"></div>
+      <div class="card-icon">
+        <svg viewBox="0 0 52 52" fill="none">
+          <rect x="8" y="16" width="36" height="24" rx="4" stroke="#22c55e" stroke-width="2" fill="rgba(34,197,94,0.06)"/>
+          <circle cx="26" cy="12" r="5" stroke="#22c55e" stroke-width="2" fill="rgba(34,197,94,0.15)"/>
+          <line x1="26" y1="17" x2="26" y2="16" stroke="#22c55e" stroke-width="2"/>
+          <line x1="14" y1="24" x2="38" y2="24" stroke="#22c55e" stroke-width="1" opacity="0.5"/>
+          <line x1="14" y1="30" x2="30" y2="30" stroke="#22c55e" stroke-width="1" opacity="0.5"/>
+          <circle cx="38" cy="32" r="5" fill="#22c55e" opacity="0.9"/>
+          <path d="M36 32 L38 34 L42 30" stroke="white" stroke-width="1.5" fill="none"/>
+        </svg>
+      </div>
+      <div class="card-divider"></div>
+      <div class="card-detail">Gemini embedding-001 · 3072d</div>
+      <div class="card-metric">Faithfulness ≥ 0.90 (Ragas)</div>
+      <div class="card-detail">nexus-ai-rag · Pinecone index</div>
+    </div>
+
+  </div><!-- intel-grid -->
+</div><!-- intel-layer -->
+
+<!-- ARROWS INTEL → AGENT -->
+<div class="agent-arrows">
+  <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+  <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+  <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+  <div class="arrow-down"><div class="arrow-line"></div><div class="arrow-head"></div></div>
+</div>
+
+<!-- AI AGENT -->
+<div class="agent-row">
+  <div class="agent-box">
+    <div class="agent-title">AI AGENT</div>
+    <div class="agent-sub">LangGraph StateGraph</div>
+    <div class="orb"></div>
+    <div class="lg-badge">&gt;&gt; LangGraph + LangChain</div><br>
+    <div class="agent-desc">agent node &nbsp;↔&nbsp; tools node &nbsp;·&nbsp; 8 ML tools &nbsp;·&nbsp; SSE streaming &nbsp;·&nbsp; session memory</div>
+  </div>
+</div>
+
+<!-- ARROW AGENT → INFRA -->
+<div class="arrow-down-single">
+  <div class="arrow-line"></div>
+  <div class="arrow-head"></div>
+</div>
+
+<!-- BOTTOM: INFRA + OBSERVABILITY -->
+<div class="bottom-row" style="margin-top:8px;">
+
+  <!-- INFRASTRUCTURE -->
+  <div class="panel">
+    <div class="panel-label">Infrastructure</div>
+    <div class="service-grid">
+
+      <div class="svc-card teal">
+        <div class="svc-name">FastAPI</div>
+        <div class="svc-icon">
+          <svg viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="12" stroke="#2dd4bf" stroke-width="1.5" fill="rgba(20,184,166,0.08)"/>
+            <polygon points="14,7 20,18 8,18" stroke="#2dd4bf" stroke-width="1.5" fill="rgba(20,184,166,0.2)"/>
+          </svg>
+        </div>
+        <div class="svc-divider" style="color:#2dd4bf;"></div>
+        <div class="svc-sub">API Gateway</div>
+      </div>
+
+      <div class="svc-card blue">
+        <div class="svc-name">PostgreSQL</div>
+        <div class="svc-icon">
+          <svg viewBox="0 0 28 28" fill="none">
+            <ellipse cx="14" cy="8" rx="9" ry="4" stroke="#93c5fd" stroke-width="1.5" fill="rgba(96,165,250,0.1)"/>
+            <path d="M5 8 L5 20 Q5 24 14 24 Q23 24 23 20 L23 8" stroke="#93c5fd" stroke-width="1.5" fill="rgba(96,165,250,0.06)"/>
+            <line x1="5" y1="14" x2="23" y2="14" stroke="#93c5fd" stroke-width="1" opacity="0.5"/>
+          </svg>
+        </div>
+        <div class="svc-divider" style="color:#93c5fd;"></div>
+        <div class="svc-sub">User / App Data</div>
+      </div>
+
+      <div class="svc-card red">
+        <div class="svc-name">Redis</div>
+        <div class="svc-icon">
+          <svg viewBox="0 0 28 28" fill="none">
+            <polygon points="14,3 24,8.5 24,19.5 14,25 4,19.5 4,8.5" stroke="#fca5a5" stroke-width="1.5" fill="rgba(239,68,68,0.08)"/>
+            <line x1="4" y1="8.5" x2="24" y2="8.5" stroke="#fca5a5" stroke-width="1" opacity="0.5"/>
+            <circle cx="14" cy="16" r="4" fill="#fca5a5" opacity="0.7"/>
+          </svg>
+        </div>
+        <div class="svc-divider" style="color:#fca5a5;"></div>
+        <div class="svc-sub">Cache / Broker</div>
+      </div>
+
+      <div class="svc-card orange">
+        <div class="svc-name">MinIO</div>
+        <div class="svc-icon">
+          <svg viewBox="0 0 28 28" fill="none">
+            <rect x="4" y="6" width="20" height="16" rx="3" stroke="#fdba74" stroke-width="1.5" fill="rgba(251,146,60,0.08)"/>
+            <path d="M9 14 L13 10 L17 14 L21 9" stroke="#fdba74" stroke-width="1.5" fill="none"/>
+          </svg>
+        </div>
+        <div class="svc-divider" style="color:#fdba74;"></div>
+        <div class="svc-sub">Object Storage</div>
+      </div>
+
+      <div class="svc-card gold">
+        <div class="svc-name">Kafka +<br>Zookeeper</div>
+        <div class="svc-icon">
+          <svg viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="5" stroke="#fde047" stroke-width="1.5" fill="rgba(234,179,8,0.15)"/>
+            <circle cx="6" cy="8" r="3" stroke="#fde047" stroke-width="1.2" fill="rgba(234,179,8,0.1)"/>
+            <circle cx="22" cy="8" r="3" stroke="#fde047" stroke-width="1.2" fill="rgba(234,179,8,0.1)"/>
+            <circle cx="6" cy="20" r="3" stroke="#fde047" stroke-width="1.2" fill="rgba(234,179,8,0.1)"/>
+            <circle cx="22" cy="20" r="3" stroke="#fde047" stroke-width="1.2" fill="rgba(234,179,8,0.1)"/>
+            <line x1="9" y1="10" x2="12" y2="12" stroke="#fde047" stroke-width="1"/>
+            <line x1="19" y1="10" x2="16" y2="12" stroke="#fde047" stroke-width="1"/>
+            <line x1="9" y1="18" x2="12" y2="16" stroke="#fde047" stroke-width="1"/>
+            <line x1="19" y1="18" x2="16" y2="16" stroke="#fde047" stroke-width="1"/>
+          </svg>
+        </div>
+        <div class="svc-divider" style="color:#fde047;"></div>
+        <div class="svc-sub">Event Streaming<br>Real-time ALS</div>
+      </div>
+
+    </div><!-- service-grid -->
+  </div><!-- infra panel -->
+
+  <!-- OBSERVABILITY -->
+  <div class="panel">
+    <div class="panel-label">Observability</div>
+    <div class="obs-grid">
+
+      <div class="svc-card purp">
+        <div class="svc-name">MLflow</div>
+        <div class="svc-icon">
+          <svg viewBox="0 0 28 28" fill="none">
+            <rect x="4" y="4" width="20" height="20" rx="3" stroke="#c4b5fd" stroke-width="1.5" fill="rgba(139,92,246,0.08)"/>
+            <path d="M8 20 L11 12 L14 16 L17 10 L20 14" stroke="#c4b5fd" stroke-width="1.5" fill="none"/>
+          </svg>
+        </div>
+        <div class="svc-divider" style="color:#c4b5fd;"></div>
+        <div class="svc-sub">Model Registry<br>Experiment Tracking</div>
+      </div>
+
+      <div class="svc-card teal2">
+        <div class="svc-name">Drift Monitor</div>
+        <div class="svc-icon">
+          <svg viewBox="0 0 28 28" fill="none">
+            <circle cx="14" cy="14" r="10" stroke="#5eead4" stroke-width="1.5" fill="rgba(45,212,191,0.06)"/>
+            <circle cx="14" cy="14" r="6" stroke="#5eead4" stroke-width="1" fill="rgba(45,212,191,0.1)"/>
+            <circle cx="14" cy="14" r="3" fill="#5eead4" opacity="0.8"/>
+            <line x1="14" y1="4" x2="14" y2="8" stroke="#5eead4" stroke-width="1.5"/>
+            <line x1="24" y1="14" x2="20" y2="14" stroke="#5eead4" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div class="svc-divider" style="color:#5eead4;"></div>
+        <div class="svc-sub">PSI across 8 models<br>/api/v1/monitor/drift</div>
+      </div>
+
+      <div class="svc-card green">
+        <div class="svc-name">Ragas Eval</div>
+        <div class="svc-icon">
+          <svg viewBox="0 0 28 28" fill="none">
+            <rect x="4" y="6" width="20" height="16" rx="3" stroke="#4ade80" stroke-width="1.5" fill="rgba(34,197,94,0.06)"/>
+            <path d="M9 17 L12 14 L15 16 L22 10" stroke="#4ade80" stroke-width="1.5" fill="none"/>
+            <circle cx="22" cy="10" r="2" fill="#4ade80"/>
+          </svg>
+        </div>
+        <div class="svc-divider" style="color:#4ade80;"></div>
+        <div class="svc-sub">RAG faithfulness<br>hallucination tracking</div>
+      </div>
+
+    </div><!-- obs-grid -->
+
+    <!-- LEGEND -->
+    <div class="legend" style="margin-top:14px;">
+      <div class="legend-item">
+        <div class="legend-line" style="background:#6aabff;"></div> Data Flow / Control
+      </div>
+      <div class="legend-item">
+        <div class="legend-line" style="background:#c4b5fd;"></div> Orchestration
+      </div>
+      <div class="legend-item">
+        <div class="legend-line" style="background:#fde047;"></div> Kafka Event
+      </div>
+    </div>
+  </div><!-- obs panel -->
+
+</div><!-- bottom-row -->
+
+</body>
+</html>
