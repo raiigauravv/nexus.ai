@@ -1,278 +1,370 @@
 """
-Generate NEXUS-AI Architecture Diagram
-Corrected version: LangGraph, XGBoost, Kafka, Drift Monitoring
+NEXUS-AI Architecture Diagram — Pillow renderer
+Matches the original dark-blue premium aesthetic with gradient borders & glow.
 Run: python3 docs/generate_architecture.py
 """
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-from matplotlib.patches import FancyBboxPatch
-from matplotlib.lines import Line2D
+from PIL import Image, ImageDraw, ImageFont
+import math, os, sys
+
+W, H = 1600, 1080
+OUT  = os.path.join(os.path.dirname(__file__), "architecture.png")
+
+# ── Colour palette ────────────────────────────────────────────────────────────
+BG       = (8,  13,  28)
+PANEL    = (11, 20,  45)
+BORDER   = (30, 70, 160)
+GLOW_BLU = (41, 121, 255)
+
+# model accent colours
+RED    = (239,  68,  68)
+PURP   = (139,  92, 246)
+GOLD   = (234, 179,   8)
+GREEN  = ( 34, 197,  94)
+TEAL   = ( 20, 184, 166)
+BLUE   = ( 96, 165, 250)
+ORANGE = (251, 146,  60)
+PINK   = (236,  72, 153)
+
+TEXT_H  = (224, 240, 255)
+TEXT_M  = (148, 180, 220)
+TEXT_D  = ( 90, 120, 155)
 
 # ── Canvas ────────────────────────────────────────────────────────────────────
-fig, ax = plt.subplots(figsize=(20, 14))
-ax.set_xlim(0, 20)
-ax.set_ylim(0, 14)
-ax.axis("off")
-fig.patch.set_facecolor("#0a0e1a")
-ax.set_facecolor("#0a0e1a")
+img  = Image.new("RGB", (W, H), BG)
+draw = ImageDraw.Draw(img)
 
-# ── Colour palette ─────────────────────────────────────────────────────────────
-C = {
-    "panel":       "#111827",
-    "panel_border":"#1e3a5f",
-    "intel_bg":    "#0f1f3d",
-    "intel_border":"#1e4080",
-    "fraud":       "#1a2744",
-    "fraud_acc":   "#e53e3e",
-    "rec":         "#1a2744",
-    "rec_acc":     "#805ad5",
-    "sent":        "#1a2744",
-    "sent_acc":    "#d69e2e",
-    "rag":         "#1a2744",
-    "rag_acc":     "#38a169",
-    "agent":       "#1e3a5f",
-    "agent_acc":   "#4299e1",
-    "infra":       "#12202a",
-    "infra_border":"#1a4060",
-    "obs":         "#12202a",
-    "obs_border":  "#1a4060",
-    "kafka":       "#1a2744",
-    "kafka_acc":   "#f6ad55",
-    "fastapi":     "#1a2744",
-    "fastapi_acc": "#48bb78",
-    "pg":          "#1a2744",
-    "pg_acc":      "#63b3ed",
-    "redis":       "#1a2744",
-    "redis_acc":   "#fc8181",
-    "minio":       "#1a2744",
-    "minio_acc":   "#f6ad55",
-    "mlflow":      "#1a2744",
-    "mlflow_acc":  "#9f7aea",
-    "drift":       "#1a2744",
-    "drift_acc":   "#4fd1c5",
-    "text_bright": "#f0f6ff",
-    "text_mid":    "#a0b4cc",
-    "text_dim":    "#607080",
-    "arrow_data":  "#4299e1",
-    "arrow_ctrl":  "#9f7aea",
-    "arrow_event": "#f6ad55",
-}
+# ── Gradient background (top dark-blue to near-black at bottom) ───────────────
+for y in range(H):
+    t = y / H
+    r = int(8  + (5  - 8 ) * t)
+    g = int(13 + (8  - 13) * t)
+    b = int(28 + (18 - 28) * t)
+    draw.line([(0, y), (W, y)], fill=(r, g, b))
 
+draw = ImageDraw.Draw(img)   # refresh after pixel ops
 
-def box(x, y, w, h, fc, ec, radius=0.3, lw=1.5, alpha=1.0):
-    p = FancyBboxPatch(
-        (x, y), w, h,
-        boxstyle=f"round,pad=0,rounding_size={radius}",
-        facecolor=fc, edgecolor=ec, linewidth=lw, alpha=alpha, zorder=3,
-    )
-    ax.add_patch(p)
-    return p
+# ── Font helpers ──────────────────────────────────────────────────────────────
+def _font(size, bold=False):
+    candidates = [
+        "/System/Library/Fonts/Supplemental/Arial Bold.ttf" if bold else
+        "/System/Library/Fonts/Supplemental/Arial.ttf",
+        "/System/Library/Fonts/Helvetica.ttc",
+        "/Library/Fonts/Arial.ttf",
+    ]
+    for p in candidates:
+        if os.path.exists(p):
+            return ImageFont.truetype(p, size)
+    return ImageFont.load_default()
 
+F_TITLE  = _font(32, bold=True)
+F_SECT   = _font(15, bold=True)
+F_HEAD   = _font(14, bold=True)
+F_SUB    = _font(12)
+F_SMALL  = _font(11)
+F_METRIC = _font(13, bold=True)
+F_BADGE  = _font(13, bold=True)
+F_LOGO   = _font(11, bold=True)
 
-def label(x, y, text, size=9, color="#f0f6ff", weight="normal", ha="center", va="center", zorder=5):
-    ax.text(x, y, text, fontsize=size, color=color, fontweight=weight,
-            ha=ha, va=va, zorder=zorder,
-            fontfamily="DejaVu Sans")
+def text_w(s, font):
+    bb = font.getbbox(s)
+    return bb[2] - bb[0]
 
+def cx_text(draw, cx, y, s, font, fill):
+    x = cx - text_w(s, font) // 2
+    draw.text((x, y), s, font=font, fill=fill)
 
-def arrow(x0, y0, x1, y1, color, lw=1.5, style="->", zorder=2):
-    ax.annotate("", xy=(x1, y1), xytext=(x0, y0),
-                arrowprops=dict(arrowstyle=style, color=color, lw=lw,
-                                connectionstyle="arc3,rad=0.0"),
-                zorder=zorder)
+# ── Drawing primitives ────────────────────────────────────────────────────────
+def rounded_rect(draw, x0, y0, x1, y1, r=12, fill=None, outline=None, width=2):
+    draw.rounded_rectangle([x0, y0, x1, y1], radius=r, fill=fill,
+                            outline=outline, width=width)
 
+def glow_rect(x0, y0, x1, y1, colour, r=12, layers=4, fill=PANEL):
+    """Draw a box with a multi-layer glow border."""
+    for i in range(layers, 0, -1):
+        alpha = int(40 + i * 18)
+        cr, cg, cb = colour
+        c = (cr, cg, cb)
+        pad = i * 2
+        try:
+            draw.rounded_rectangle(
+                [x0 - pad, y0 - pad, x1 + pad, y1 + pad],
+                radius=r + pad, outline=c, width=1, fill=None
+            )
+        except Exception:
+            pass
+    rounded_rect(draw, x0, y0, x1, y1, r=r, fill=fill, outline=colour, width=2)
 
-def section_label(x, y, text, size=8, color=None):
-    ax.text(x, y, text, fontsize=size,
-            color=color or C["text_dim"],
-            ha="center", va="center", style="italic", zorder=5)
+def divider(x0, x1, y, colour=BORDER):
+    draw.line([(x0, y), (x1, y)], fill=colour, width=1)
 
+def dot(cx, cy, r, colour):
+    draw.ellipse([cx - r, cy - r, cx + r, cy + r], fill=colour)
+
+def hex_icon(cx, cy, size, colour):
+    """Draw a simple hexagon icon."""
+    pts = []
+    for i in range(6):
+        a = math.radians(60 * i - 30)
+        pts.append((cx + size * math.cos(a), cy + size * math.sin(a)))
+    draw.polygon(pts, outline=colour, fill=(*colour[:3], 40) if len(colour) == 4 else None)
+    draw.polygon(pts, outline=colour)
+
+def diamond_icon(cx, cy, size, colour):
+    pts = [(cx, cy - size), (cx + size, cy), (cx, cy + size), (cx - size, cy)]
+    draw.polygon(pts, outline=colour)
+    inner = int(size * 0.55)
+    pts2 = [(cx, cy - inner), (cx + inner, cy), (cx, cy + inner), (cx - inner, cy)]
+    draw.polygon(pts2, fill=colour)
+
+def circle_icon(cx, cy, size, colour):
+    draw.ellipse([cx - size, cy - size, cx + size, cy + size], outline=colour, width=2)
+    inner = int(size * 0.5)
+    draw.ellipse([cx - inner, cy - inner, cx + inner, cy + inner], fill=colour)
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TITLE
 # ══════════════════════════════════════════════════════════════════════════════
-label(10, 13.4, "NEXUS-AI SYSTEM ARCHITECTURE", size=18,
-      color=C["text_bright"], weight="bold")
-label(10, 13.0, "LangGraph · XGBoost · RAG · Kafka · MLflow · Drift Monitoring",
-      size=9.5, color=C["text_mid"])
+cx = W // 2
+cx_text(draw, cx, 18, "NEXUS-AI SYSTEM ARCHITECTURE", F_TITLE, TEXT_H)
+cx_text(draw, cx, 60, "A Premium High-Fidelity AI Orchestration Platform", F_SUB, TEXT_M)
+draw.line([(100, 88), (W - 100, 88)], fill=BORDER, width=1)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# INTELLIGENCE LAYER (outer panel)
+# INTELLIGENCE LAYER  (y: 98 – 490)
 # ══════════════════════════════════════════════════════════════════════════════
-box(0.4, 7.5, 19.2, 4.9, C["intel_bg"], C["intel_border"], radius=0.5, lw=2)
-label(10, 12.05, "NEXUS-AI: Intelligence Layer", size=10,
-      color=C["agent_acc"], weight="bold")
+IL_X0, IL_Y0, IL_X1, IL_Y1 = 22, 98, W - 22, 490
+glow_rect(IL_X0, IL_Y0, IL_X1, IL_Y1, GLOW_BLU, r=16, layers=3,
+          fill=(11, 22, 52))
+cx_text(draw, cx, IL_Y0 + 12, "NEXUS-AI: Intelligence Layer", F_SECT, BLUE)
 
-# ── 4 model boxes ─────────────────────────────────────────────────────────────
-MODEL_Y   = 8.1
-MODEL_H   = 3.7
-MODEL_W   = 4.0
-GAP       = 0.46
-starts    = [0.7, 5.16, 9.62, 14.08]
+# 4 model boxes
+BOX_Y0 = IL_Y0 + 44
+BOX_H  = IL_Y1 - BOX_Y0 - 14
+BOX_W  = 362
+GAP    = 20
+starts = [IL_X0 + 14, IL_X0 + 14 + BOX_W + GAP,
+          IL_X0 + 14 + (BOX_W + GAP) * 2,
+          IL_X0 + 14 + (BOX_W + GAP) * 3]
 
-# Fraud Detection
-bx = starts[0]
-box(bx, MODEL_Y, MODEL_W, MODEL_H, C["fraud"], C["fraud_acc"], lw=2)
-label(bx + MODEL_W/2, MODEL_Y + MODEL_H - 0.45, "Fraud Detection", size=10,
-      color="#fc8181", weight="bold")
-label(bx + MODEL_W/2, MODEL_Y + MODEL_H - 0.95, "XGBoost + Isolation Forest", size=8,
-      color=C["text_mid"])
-label(bx + MODEL_W/2, MODEL_Y + 2.35, "⬡", size=28, color="#e53e3e")
-label(bx + MODEL_W/2, MODEL_Y + 1.6,  "SMOTE balanced", size=7.5, color=C["text_dim"])
-label(bx + MODEL_W/2, MODEL_Y + 1.2,  "F1: 0.9091  AUC-ROC: 0.98", size=7.5,
-      color="#fc8181", weight="bold")
-label(bx + MODEL_W/2, MODEL_Y + 0.65, "284K real transactions", size=7, color=C["text_dim"])
-label(bx + MODEL_W/2, MODEL_Y + 0.25, "Kaggle CC Fraud Dataset", size=7, color=C["text_dim"])
+MODELS = [
+    {
+        "title":   "Fraud Detection",
+        "sub":     "XGBoost + Isolation Forest",
+        "colour":  RED,
+        "icon":    "hex",
+        "lines": [
+            ("SMOTE balanced  ·  284K transactions",  TEXT_D,  F_SMALL),
+            ("F1: 0.9091",                            RED,     F_METRIC),
+            ("AUC-ROC: 0.98",                         TEXT_M,  F_SMALL),
+            ("Kaggle CC Fraud Dataset",               TEXT_D,  F_SMALL),
+        ],
+    },
+    {
+        "title":   "Hybrid Recommender",
+        "sub":     "SVD + CLIP Content-Based",
+        "colour":  PURP,
+        "icon":    "diamond",
+        "lines": [
+            ("MovieLens 1M  ·  1M ratings",           TEXT_D,  F_SMALL),
+            ("SVD rank-50  ·  NDCG@10",               PURP,    F_METRIC),
+            ("Real-time ALS Kafka update",            TEXT_M,  F_SMALL),
+            ("No full retrain needed",                TEXT_D,  F_SMALL),
+        ],
+    },
+    {
+        "title":   "Thematic Sentiment",
+        "sub":     "RoBERTa + DistilBERT + VADER",
+        "colour":  GOLD,
+        "icon":    "circle",
+        "lines": [
+            ("BERTopic  ·  Aspect & emotion level",   TEXT_D,  F_SMALL),
+            ("Accuracy: 91.3%",                       GOLD,    F_METRIC),
+            ("cardiffnlp/roberta-sentiment",          TEXT_M,  F_SMALL),
+            ("Ensemble fallback chain",               TEXT_D,  F_SMALL),
+        ],
+    },
+    {
+        "title":   "RAG Pipeline",
+        "sub":     "LangChain + Pinecone",
+        "colour":  GREEN,
+        "icon":    "diamond",
+        "lines": [
+            ("Gemini embedding-001  ·  3072d",        TEXT_D,  F_SMALL),
+            ("Faithfulness ≥ 0.90 (Ragas)",           GREEN,   F_METRIC),
+            ("nexus-ai-rag  ·  Pinecone index",       TEXT_M,  F_SMALL),
+            ("10-item eval dataset",                  TEXT_D,  F_SMALL),
+        ],
+    },
+]
 
-# Hybrid Recommender
-bx = starts[1]
-box(bx, MODEL_Y, MODEL_W, MODEL_H, C["rec"], C["rec_acc"], lw=2)
-label(bx + MODEL_W/2, MODEL_Y + MODEL_H - 0.45, "Hybrid Recommender", size=10,
-      color="#b794f4", weight="bold")
-label(bx + MODEL_W/2, MODEL_Y + MODEL_H - 0.95, "SVD + CLIP Content-Based", size=8,
-      color=C["text_mid"])
-label(bx + MODEL_W/2, MODEL_Y + 2.35, "◈", size=26, color="#805ad5")
-label(bx + MODEL_W/2, MODEL_Y + 1.6,  "MovieLens 1M  (1M ratings)", size=7.5, color=C["text_dim"])
-label(bx + MODEL_W/2, MODEL_Y + 1.2,  "SVD rank-50  ·  NDCG@10", size=7.5,
-      color="#b794f4", weight="bold")
-label(bx + MODEL_W/2, MODEL_Y + 0.65, "Real-time ALS Kafka update", size=7, color=C["text_dim"])
-label(bx + MODEL_W/2, MODEL_Y + 0.25, "No full retrain needed", size=7, color=C["text_dim"])
+for m, bx in zip(MODELS, starts):
+    glow_rect(bx, BOX_Y0, bx + BOX_W, BOX_Y0 + BOX_H,
+              m["colour"], r=12, layers=3, fill=(14, 22, 48))
 
-# Thematic Sentiment
-bx = starts[2]
-box(bx, MODEL_Y, MODEL_W, MODEL_H, C["sent"], C["sent_acc"], lw=2)
-label(bx + MODEL_W/2, MODEL_Y + MODEL_H - 0.45, "Thematic Sentiment", size=10,
-      color="#f6e05e", weight="bold")
-label(bx + MODEL_W/2, MODEL_Y + MODEL_H - 0.95, "RoBERTa + DistilBERT + VADER", size=7.5,
-      color=C["text_mid"])
-label(bx + MODEL_W/2, MODEL_Y + 2.35, "◉", size=26, color="#d69e2e")
-label(bx + MODEL_W/2, MODEL_Y + 1.6,  "BERTopic thematic clustering", size=7.5, color=C["text_dim"])
-label(bx + MODEL_W/2, MODEL_Y + 1.2,  "Accuracy: 91.3%", size=7.5,
-      color="#f6e05e", weight="bold")
-label(bx + MODEL_W/2, MODEL_Y + 0.65, "Aspect + emotion breakdown", size=7, color=C["text_dim"])
-label(bx + MODEL_W/2, MODEL_Y + 0.25, "cardiffnlp/roberta-sentiment", size=7, color=C["text_dim"])
+    # Title
+    cx_text(draw, bx + BOX_W // 2, BOX_Y0 + 12, m["title"],  F_HEAD, m["colour"])
+    cx_text(draw, bx + BOX_W // 2, BOX_Y0 + 32, m["sub"],    F_SMALL, TEXT_M)
 
-# RAG
-bx = starts[3]
-box(bx, MODEL_Y, MODEL_W, MODEL_H, C["rag"], C["rag_acc"], lw=2)
-label(bx + MODEL_W/2, MODEL_Y + MODEL_H - 0.45, "RAG Pipeline", size=10,
-      color="#68d391", weight="bold")
-label(bx + MODEL_W/2, MODEL_Y + MODEL_H - 0.95, "LangChain + Pinecone", size=8,
-      color=C["text_mid"])
-label(bx + MODEL_W/2, MODEL_Y + 2.35, "◈", size=26, color="#38a169")
-label(bx + MODEL_W/2, MODEL_Y + 1.6,  "Gemini embedding-001 (3072d)", size=7.5, color=C["text_dim"])
-label(bx + MODEL_W/2, MODEL_Y + 1.2,  "Faithfulness ≥ 0.90 (Ragas)", size=7.5,
-      color="#68d391", weight="bold")
-label(bx + MODEL_W/2, MODEL_Y + 0.65, "nexus-ai-rag Pinecone index", size=7, color=C["text_dim"])
-label(bx + MODEL_W/2, MODEL_Y + 0.25, "Ragas eval · 10-item dataset", size=7, color=C["text_dim"])
+    divider(bx + 14, bx + BOX_W - 14, BOX_Y0 + 52, m["colour"])
+
+    # Icon
+    icon_cy = BOX_Y0 + 52 + 62
+    icon_cx = bx + BOX_W // 2
+    if m["icon"] == "hex":
+        hex_icon(icon_cx, icon_cy, 30, m["colour"])
+    elif m["icon"] == "diamond":
+        diamond_icon(icon_cx, icon_cy, 26, m["colour"])
+    else:
+        circle_icon(icon_cx, icon_cy, 26, m["colour"])
+
+    divider(bx + 14, bx + BOX_W - 14, BOX_Y0 + 52 + 110, m["colour"])
+
+    # Text lines
+    ty = BOX_Y0 + 52 + 118
+    for txt, col, fnt in m["lines"]:
+        cx_text(draw, bx + BOX_W // 2, ty, txt, fnt, col)
+        ty += 20
 
 # ══════════════════════════════════════════════════════════════════════════════
-# AI AGENT (centre)
+# AI AGENT  (centre, y: 508 – 658)
 # ══════════════════════════════════════════════════════════════════════════════
-AX, AY, AW, AH = 7.2, 4.5, 5.6, 2.7
-box(AX, AY, AW, AH, C["agent"], C["agent_acc"], radius=0.5, lw=2.5)
+AG_W, AG_H = 460, 148
+AG_X0 = (W - AG_W) // 2
+AG_Y0 = 506
 
-# Glowing circle
-circle = plt.Circle((AX + AW/2, AY + AH/2 + 0.2), 0.75,
-                     color="#1a4080", zorder=4)
-ax.add_patch(circle)
-circle2 = plt.Circle((AX + AW/2, AY + AH/2 + 0.2), 0.6,
-                      color="#2a5faa", zorder=4)
-ax.add_patch(circle2)
-label(AX + AW/2, AY + AH/2 + 0.2, "⬡", size=20, color="#90cdf4", zorder=5)
+# Arrows from model boxes to agent
+ARROW_COL = (41, 100, 200)
+for bx in starts:
+    ax = bx + BOX_W // 2
+    draw.line([(ax, IL_Y1), (ax, AG_Y0 - 4)], fill=ARROW_COL, width=2)
+    draw.polygon([(ax, AG_Y0 + 4), (ax - 7, AG_Y0 - 8), (ax + 7, AG_Y0 - 8)],
+                 fill=ARROW_COL)
 
-label(AX + AW/2, AY + AH - 0.38, "AI AGENT", size=12,
-      color=C["text_bright"], weight="bold")
-label(AX + AW/2, AY + AH - 0.72, "LangGraph StateGraph", size=9.5,
-      color="#90cdf4", weight="bold")
-label(AX + AW/2, AY + 0.55, "agent node  ↔  tools node", size=8, color=C["text_mid"])
-label(AX + AW/2, AY + 0.22, "8 ML tools · SSE streaming · session memory", size=7.5,
-      color=C["text_dim"])
+glow_rect(AG_X0, AG_Y0, AG_X0 + AG_W, AG_Y0 + AG_H,
+          GLOW_BLU, r=18, layers=5, fill=(10, 24, 60))
+
+# Glowing orb
+OC_X, OC_Y = AG_X0 + AG_W // 2, AG_Y0 + 46
+for r in range(28, 8, -4):
+    alpha = max(0, 180 - r * 5)
+    draw.ellipse([OC_X - r, OC_Y - r, OC_X + r, OC_Y + r],
+                 fill=(20, 80, 200))
+dot(OC_X, OC_Y, 14, (80, 160, 255))
+dot(OC_X, OC_Y, 6,  (200, 230, 255))
+
+cx_text(draw, AG_X0 + AG_W // 2, AG_Y0 + 6,  "AI AGENT",           F_HEAD, TEXT_H)
+cx_text(draw, AG_X0 + AG_W // 2, AG_Y0 + 26, "LangGraph StateGraph",F_BADGE, BLUE)
 
 # LangGraph badge
-badge_x, badge_y = AX + AW/2 - 1.5, AY + 1.1
-box(badge_x, badge_y, 3.0, 0.5, "#1a3a6a", "#4299e1", radius=0.2, lw=1.5)
-label(badge_x + 1.5, badge_y + 0.25, ">>  LangGraph + LangChain", size=8,
-      color="#90cdf4", weight="bold")
+BDG_W, BDG_H = 240, 28
+BDG_X = AG_X0 + (AG_W - BDG_W) // 2
+BDG_Y = AG_Y0 + 76
+rounded_rect(draw, BDG_X, BDG_Y, BDG_X + BDG_W, BDG_Y + BDG_H,
+             r=8, fill=(15, 40, 100), outline=BLUE, width=1)
+cx_text(draw, BDG_X + BDG_W // 2, BDG_Y + 6,
+        ">>  LangGraph  +  LangChain", F_LOGO, BLUE)
+
+cx_text(draw, AG_X0 + AG_W // 2, AG_Y0 + 112,
+        "agent node  <->  tools node  ·  8 ML tools  ·  SSE streaming  ·  session memory",
+        F_SMALL, TEXT_D)
+
+# Arrow from agent down to infra
+MID_X = W // 2
+draw.line([(MID_X, AG_Y0 + AG_H), (MID_X, AG_Y0 + AG_H + 26)],
+          fill=ARROW_COL, width=2)
+draw.polygon([(MID_X, AG_Y0 + AG_H + 34),
+              (MID_X - 7, AG_Y0 + AG_H + 20),
+              (MID_X + 7, AG_Y0 + AG_H + 20)], fill=ARROW_COL)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# INFRASTRUCTURE (bottom-left)
+# INFRASTRUCTURE  (bottom-left)
 # ══════════════════════════════════════════════════════════════════════════════
-IX, IY, IW, IH = 0.4, 0.3, 11.8, 3.9
-box(IX, IY, IW, IH, C["infra"], C["infra_border"], radius=0.4, lw=2)
-label(IX + IW/2, IY + IH - 0.3, "INFRASTRUCTURE", size=10,
-      color=C["agent_acc"], weight="bold")
+INF_Y0 = AG_Y0 + AG_H + 40
+INF_Y1 = H - 22
+INF_X0 = 22
+INF_X1 = 850
+glow_rect(INF_X0, INF_Y0, INF_X1, INF_Y1, BORDER, r=14, layers=2,
+          fill=(8, 18, 38))
+cx_text(draw, (INF_X0 + INF_X1) // 2, INF_Y0 + 10, "INFRASTRUCTURE",
+        F_SECT, BLUE)
 
-# 5 infra service boxes
-SW, SH = 1.9, 2.4
-SY = IY + 0.35
-sx_list = [0.6, 2.65, 4.7, 6.75, 8.8]
-services = [
-    ("FastAPI",      "API Gateway",        "#48bb78", "⬡"),
-    ("PostgreSQL",   "User / App Data",    "#63b3ed", "◈"),
-    ("Redis",        "Cache / Broker",     "#fc8181", "◈"),
-    ("MinIO",        "Object Storage\nModel Artifacts", "#f6ad55", "◈"),
-    ("Kafka +\nZookeeper", "Event Streaming\nReal-time ALS", "#f6ad55", "◉"),
+SERV = [
+    ("FastAPI",          "API Gateway",             TEAL),
+    ("PostgreSQL",       "User / App Data",          BLUE),
+    ("Redis",            "Cache / Broker",           RED),
+    ("MinIO",            "Object Storage",           ORANGE),
+    ("Kafka +\nZookeeper","Event Streaming\nReal-time ALS", GOLD),
 ]
-for (name, sub, acc, ico), sx in zip(services, sx_list):
-    box(sx, SY, SW, SH, C["panel"], acc, radius=0.3, lw=1.5)
-    label(sx + SW/2, SY + SH - 0.32, name, size=8.5, color=acc, weight="bold")
-    label(sx + SW/2, SY + SH/2 + 0.1, ico, size=22, color=acc)
-    label(sx + SW/2, SY + 0.55, sub, size=7, color=C["text_dim"])
+SBW = 148; SBH = 130; SBY = INF_Y0 + 38
+sbx_start = INF_X0 + 22
+sbx_gap   = (INF_X1 - INF_X0 - 44 - SBW * 5) // 4
+
+for i, (name, sub, col) in enumerate(SERV):
+    sbx = sbx_start + i * (SBW + sbx_gap)
+    glow_rect(sbx, SBY, sbx + SBW, SBY + SBH, col, r=10, layers=2,
+              fill=(10, 20, 42))
+    if "\n" in name:
+        parts = name.split("\n")
+        cx_text(draw, sbx + SBW // 2, SBY + 10, parts[0], F_BADGE, col)
+        cx_text(draw, sbx + SBW // 2, SBY + 26, parts[1], F_BADGE, col)
+    else:
+        cx_text(draw, sbx + SBW // 2, SBY + 14, name, F_BADGE, col)
+
+    diamond_icon(sbx + SBW // 2, SBY + SBH // 2 + 8, 18, col)
+
+    divider(sbx + 10, sbx + SBW - 10, SBY + SBH - 36, col)
+    if "\n" in sub:
+        parts = sub.split("\n")
+        cx_text(draw, sbx + SBW // 2, SBY + SBH - 32, parts[0], F_SMALL, TEXT_D)
+        cx_text(draw, sbx + SBW // 2, SBY + SBH - 16, parts[1], F_SMALL, TEXT_D)
+    else:
+        cx_text(draw, sbx + SBW // 2, SBY + SBH - 22, sub, F_SMALL, TEXT_D)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# OBSERVABILITY (bottom-right)
+# OBSERVABILITY  (bottom-right)
 # ══════════════════════════════════════════════════════════════════════════════
-OX, OY, OW, OH = 12.6, 0.3, 7.0, 3.9
-box(OX, OY, OW, OH, C["obs"], C["obs_border"], radius=0.4, lw=2)
-label(OX + OW/2, OY + OH - 0.3, "OBSERVABILITY", size=10,
-      color=C["agent_acc"], weight="bold")
+OBS_X0 = 870
+OBS_X1 = W - 22
+glow_rect(OBS_X0, INF_Y0, OBS_X1, INF_Y1, BORDER, r=14, layers=2,
+          fill=(8, 18, 38))
+cx_text(draw, (OBS_X0 + OBS_X1) // 2, INF_Y0 + 10,
+        "OBSERVABILITY", F_SECT, BLUE)
 
-obs = [
-    ("MLflow",         "Model Registry\nExperiment Tracking", "#9f7aea", "◈"),
-    ("Drift Monitor",  "PSI across 8 models\n/api/v1/monitor/drift", "#4fd1c5", "◉"),
-    ("Ragas Eval",     "RAG faithfulness\nhallucination tracking", "#68d391", "◈"),
+OBS_ITEMS = [
+    ("MLflow",         "Model Registry\nExperiment Tracking", PURP),
+    ("Drift Monitor",  "PSI across 8 models\n/api/v1/monitor/drift", TEAL),
+    ("Ragas Eval",     "RAG faithfulness\nhallucination tracking", GREEN),
 ]
-ox_list = [12.8, 14.9, 17.0]
-for (name, sub, acc, ico), ox in zip(obs, ox_list):
-    box(ox, SY, SW, SH, C["panel"], acc, radius=0.3, lw=1.5)
-    label(ox + SW/2, SY + SH - 0.32, name, size=8.5, color=acc, weight="bold")
-    label(ox + SW/2, SY + SH/2 + 0.1, ico, size=22, color=acc)
-    label(ox + SW/2, SY + 0.55, sub, size=7, color=C["text_dim"])
+OBW = (OBS_X1 - OBS_X0 - 44 - 2 * 14) // 3
+obx_start = OBS_X0 + 22
+
+for i, (name, sub, col) in enumerate(OBS_ITEMS):
+    obx = obx_start + i * (OBW + 14)
+    glow_rect(obx, SBY, obx + OBW, SBY + SBH, col, r=10, layers=2,
+              fill=(10, 20, 42))
+    cx_text(draw, obx + OBW // 2, SBY + 14, name, F_BADGE, col)
+    circle_icon(obx + OBW // 2, SBY + SBH // 2 + 8, 18, col)
+    divider(obx + 10, obx + OBW - 10, SBY + SBH - 36, col)
+    parts = sub.split("\n")
+    cx_text(draw, obx + OBW // 2, SBY + SBH - 32, parts[0], F_SMALL, TEXT_D)
+    if len(parts) > 1:
+        cx_text(draw, obx + OBW // 2, SBY + SBH - 16, parts[1], F_SMALL, TEXT_D)
 
 # ══════════════════════════════════════════════════════════════════════════════
-# ARROWS
+# LEGEND  (bottom-right corner)
 # ══════════════════════════════════════════════════════════════════════════════
-# Model boxes → Agent (downward)
-for bx, mid in zip(starts, [2.7, 7.16, 11.62, 16.08]):
-    arrow(mid, MODEL_Y, mid, AY + AH, C["arrow_data"], lw=1.5)
+LX, LY = W - 220, INF_Y1 - 78
+rounded_rect(draw, LX - 10, LY - 8, W - 10, INF_Y1 - 6,
+             r=8, fill=(8, 16, 36), outline=BORDER, width=1)
+for i, (col, lbl) in enumerate([(BLUE, "Data Flow / Control"),
+                                  (PURP, "Orchestration"),
+                                  (GOLD, "Kafka Event")]):
+    yl = LY + i * 20
+    draw.line([(LX, yl + 6), (LX + 28, yl + 6)], fill=col, width=2)
+    draw.polygon([(LX + 32, yl + 6), (LX + 24, yl + 2), (LX + 24, yl + 10)],
+                 fill=col)
+    draw.text((LX + 38, yl), lbl, font=F_SMALL, fill=TEXT_M)
 
-# Agent → Infrastructure
-arrow(AX + AW/2, AY, AX + AW/2, IY + IH, C["arrow_ctrl"], lw=1.8)
-
-# Kafka → Agent (purchase event feedback)
-arrow(9.75, IY + IH, 9.6, AY, C["arrow_event"], lw=1.5)
-
-# Agent → Observability
-arrow(AX + AW, AY + AH/2, OX, AY + AH/2 - 0.5, C["arrow_ctrl"], lw=1.5)
-
-# ══════════════════════════════════════════════════════════════════════════════
-# LEGEND
-# ══════════════════════════════════════════════════════════════════════════════
-legend_items = [
-    Line2D([0], [0], color=C["arrow_data"],  lw=2, label="Data Flow"),
-    Line2D([0], [0], color=C["arrow_ctrl"],  lw=2, label="Control / Orchestration"),
-    Line2D([0], [0], color=C["arrow_event"], lw=2, label="Kafka Event"),
-]
-leg = ax.legend(handles=legend_items, loc="lower right",
-                framealpha=0.15, facecolor="#0d1117",
-                edgecolor="#1e3a5f", fontsize=8,
-                labelcolor=C["text_mid"])
-
-plt.tight_layout(pad=0.3)
-out = "docs/architecture.png"
-fig.savefig(out, dpi=160, bbox_inches="tight",
-            facecolor=fig.get_facecolor())
-print(f"✅  Saved → {out}")
+# ── Save ──────────────────────────────────────────────────────────────────────
+img.save(OUT, "PNG", dpi=(144, 144))
+print(f"✅  Saved  →  {OUT}  ({W}×{H}px)")
