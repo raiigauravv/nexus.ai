@@ -45,29 +45,31 @@ jobs:
         run: pytest ../tests/test_core.py ../tests/test_api_endpoints.py ../tests/test_rag_eval.py -k "not agent_routing_fallback and not ragas_online" -q
 
       - name: Validate LangGraph orchestrator imports correctly
-        run: python -c "
-import ast, sys
-with open('app/agent/orchestrator.py') as f:
-    tree = ast.parse(f.read())
-# Verify langgraph is actually imported (not just in requirements)
-imports = [n for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom))]
-langgraph_used = any('langgraph' in getattr(n, 'module', '') or
-                     any('langgraph' in getattr(a, 'name', '') for a in getattr(n, 'names', []))
-                     for n in imports)
-assert langgraph_used, 'LangGraph not imported in orchestrator.py'
-print('LangGraph import verified in orchestrator.py')
-"
+        run: |
+          python <<'PYEOF'
+          import ast, sys
+          with open('app/agent/orchestrator.py') as f:
+              tree = ast.parse(f.read())
+          # Verify langgraph is actually imported (not just in requirements)
+          imports = [n for n in ast.walk(tree) if isinstance(n, (ast.Import, ast.ImportFrom))]
+          langgraph_used = any('langgraph' in getattr(n, 'module', '') or
+                               any('langgraph' in getattr(a, 'name', '') for a in getattr(n, 'names', []))
+                               for n in imports)
+          assert langgraph_used, 'LangGraph not imported in orchestrator.py'
+          print('LangGraph import verified in orchestrator.py')
+          PYEOF
 
       - name: Validate drift module imports correctly
-        run: python -c "
-import sys; sys.path.insert(0, '.')
-from app.monitoring.drift import record_prediction, get_drift_report
-report = get_drift_report()
-assert report['n_models'] == 8, f'Expected 8 models, got {report[\"n_models\"]}'
-record_prediction('fraud', 0.85)
-record_prediction('sentiment_pos', 0.92)
-print('Drift module OK — 8 models tracked, record_prediction works')
-"
+        run: |
+          python <<'PYEOF'
+          import sys; sys.path.insert(0, '.')
+          from app.monitoring.drift import record_prediction, get_drift_report
+          report = get_drift_report()
+          assert report['n_models'] == 8, f"Expected 8 models, got {report['n_models']}"
+          record_prediction('fraud', 0.85)
+          record_prediction('sentiment_pos', 0.92)
+          print('Drift module OK — 8 models tracked, record_prediction works')
+          PYEOF
 
   backend-security:
     runs-on: ubuntu-latest
